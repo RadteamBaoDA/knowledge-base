@@ -3,14 +3,24 @@ import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, User } from '../hooks/useAuth';
 import { useSettings } from '../contexts/SettingsContext';
+import {
+  MessageSquare,
+  Search,
+  History,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Library
+} from 'lucide-react';
 
 function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
   const sizeClasses = size === 'sm' ? 'w-8 h-8 text-sm' : 'w-10 h-10 text-base';
-  
+
   if (user.avatar) {
     return (
-      <img 
-        src={user.avatar} 
+      <img
+        src={user.avatar}
         alt={user.displayName}
         className={`${sizeClasses} rounded-full object-cover`}
       />
@@ -59,19 +69,24 @@ function Layout() {
         {/* Header with collapse toggle */}
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} mb-8 pb-4 border-b border-white/10`}>
           {!isCollapsed && (
-            <div className="text-xl font-bold">
-              📚 {t('common.appName')}
+            <div className="flex items-center gap-3 text-xl font-bold text-white">
+              <div className="p-2 bg-primary rounded-lg">
+                <Library size={24} className="text-white" />
+              </div>
+              <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                {t('common.appName')}
+              </span>
             </div>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-300 hover:text-white"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
             title={isCollapsed ? t('nav.expandMenu') : t('nav.collapseMenu')}
           >
-            {isCollapsed ? '→' : '←'}
+            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
         </div>
-        
+
         <nav className="flex flex-col gap-2 flex-1">
           <NavLink
             to="/ai-chat"
@@ -80,7 +95,7 @@ function Layout() {
             }
             title={t('nav.aiChat')}
           >
-            <span>💬</span>
+            <MessageSquare size={20} />
             {!isCollapsed && <span>{t('nav.aiChat')}</span>}
           </NavLink>
           <NavLink
@@ -90,7 +105,7 @@ function Layout() {
             }
             title={t('nav.aiSearch')}
           >
-            <span>🔍</span>
+            <Search size={20} />
             {!isCollapsed && <span>{t('nav.aiSearch')}</span>}
           </NavLink>
           <NavLink
@@ -100,11 +115,11 @@ function Layout() {
             }
             title={t('nav.history')}
           >
-            <span>📜</span>
+            <History size={20} />
             {!isCollapsed && <span>{t('nav.history')}</span>}
           </NavLink>
         </nav>
-        
+
         {/* User info, settings and logout at bottom */}
         <div className="mt-auto pt-4 border-t border-white/10 space-y-3">
           {user && (
@@ -127,7 +142,7 @@ function Layout() {
             className={`sidebar-link text-slate-300 hover:text-white w-full ${isCollapsed ? 'justify-center px-2' : ''}`}
             title={t('common.settings')}
           >
-            <span>⚙️</span>
+            <Settings size={20} />
             {!isCollapsed && <span>{t('common.settings')}</span>}
           </button>
           <Link
@@ -135,7 +150,7 @@ function Layout() {
             className={`sidebar-link text-slate-400 hover:text-white ${isCollapsed ? 'justify-center px-2' : ''}`}
             title={t('nav.signOut')}
           >
-            <span>🚪</span>
+            <LogOut size={20} />
             {!isCollapsed && <span>{t('nav.signOut')}</span>}
           </Link>
         </div>
