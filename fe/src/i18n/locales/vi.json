@@ -61,6 +61,10 @@
     "deleteAllMessage": "Bạn có chắc chắn muốn xóa TẤT CẢ các phiên trò chuyện không? Điều này sẽ xóa vĩnh viễn toàn bộ lịch sử trò chuyện của bạn và không thể hoàn tác.",
     "deleting": "Đang xóa..."
   },
+  "iframe": {
+    "loadingChat": "Đang tải Trò chuyện AI...",
+    "loadingSearch": "Đang tải Tìm kiếm AI..."
+  },
   "pages": {
     "aiChat": {
       "title": "Trò chuyện AI",

@@ -61,6 +61,10 @@
     "deleteAllMessage": "Are you sure you want to delete ALL chat sessions? This will permanently remove all your chat history and cannot be undone.",
     "deleting": "Deleting..."
   },
+  "iframe": {
+    "loadingChat": "Loading AI Chat...",
+    "loadingSearch": "Loading AI Search..."
+  },
   "pages": {
     "aiChat": {
       "title": "AI Chat",
