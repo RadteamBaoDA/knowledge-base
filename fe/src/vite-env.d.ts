@@ -12,3 +12,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Global variables injected by Vite
+declare const __SHARED_STORAGE_DOMAIN__: string;

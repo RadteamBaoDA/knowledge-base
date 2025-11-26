@@ -1,15 +1,52 @@
 import dotenv from 'dotenv';
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config();
+
+// Load SSL certificates if available
+const certsDir = join(__dirname, '..', '..', '..', 'certs');
+const sslKeyPath = join(certsDir, 'key.pem');
+const sslCertPath = join(certsDir, 'cert.pem');
+
+const hasSSLCerts = existsSync(sslKeyPath) && existsSync(sslCertPath);
 
 export const config = {
   port: parseInt(process.env['PORT'] ?? '3001', 10),
   nodeEnv: process.env['NODE_ENV'] ?? 'development',
   
+  // HTTPS/SSL Configuration
+  https: {
+    enabled: process.env['HTTPS_ENABLED'] === 'true' && hasSSLCerts,
+    keyPath: sslKeyPath,
+    certPath: sslCertPath,
+    // Load certs lazily to avoid errors if not present
+    getCredentials: () => hasSSLCerts ? {
+      key: readFileSync(sslKeyPath),
+      cert: readFileSync(sslCertPath),
+    } : null,
+  },
+  
+  // Development domain configuration
+  devDomain: process.env['DEV_DOMAIN'] ?? 'localhost',
+  
+  database: {
+    host: process.env['DB_HOST'] ?? 'localhost',
+    port: parseInt(process.env['DB_PORT'] ?? '5432', 10),
+    name: process.env['DB_NAME'] ?? 'knowledge_base',
+    user: process.env['DB_USER'] ?? 'postgres',
+    password: process.env['DB_PASSWORD'] ?? '',
+  },
+  
   ragflow: {
-    aiChat: process.env['RAGFLOW_AI_CHAT'] ?? 'http://localhost:9380/chat',
-    aiSearch: process.env['RAGFLOW_AI_SEARCH'] ?? 'http://localhost:9380/search',
-    apiKey: process.env['RAGFLOW_API_KEY'] ?? '',
+    // Full chat iframe URL (direct URL, no proxy)
+    aiChatUrl: process.env['RAGFLOW_AI_CHAT_URL'] ?? '',
+    // Full search iframe URL (direct URL, no proxy)
+    aiSearchUrl: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
   },
   
   langfuse: {
@@ -22,14 +59,36 @@ export const config = {
     clientId: process.env['AZURE_AD_CLIENT_ID'] ?? '',
     clientSecret: process.env['AZURE_AD_CLIENT_SECRET'] ?? '',
     tenantId: process.env['AZURE_AD_TENANT_ID'] ?? '',
-    redirectUri: process.env['AZURE_AD_REDIRECT_URI'] ?? 'http://localhost:3001/auth/callback',
+    redirectUri: process.env['AZURE_AD_REDIRECT_URI'] ?? 'http://localhost:3001/api/auth/callback',
+  },
+  
+  redis: {
+    host: process.env['REDIS_HOST'] ?? 'localhost',
+    port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
+    password: process.env['REDIS_PASSWORD'] ?? undefined,
+    db: parseInt(process.env['REDIS_DB'] ?? '0', 10),
+    // Build Redis URL for client
+    get url(): string {
+      const password = process.env['REDIS_PASSWORD'];
+      const host = process.env['REDIS_HOST'] ?? 'localhost';
+      const port = process.env['REDIS_PORT'] ?? '6379';
+      const db = process.env['REDIS_DB'] ?? '0';
+      return password 
+        ? `redis://:${password}@${host}:${port}/${db}`
+        : `redis://${host}:${port}/${db}`;
+    },
   },
   
   session: {
     secret: process.env['SESSION_SECRET'] ?? 'change-me-in-production',
+    // Session TTL: 7 days in seconds
+    ttlSeconds: parseInt(process.env['SESSION_TTL_DAYS'] ?? '7', 10) * 24 * 60 * 60,
   },
   
   frontendUrl: process.env['FRONTEND_URL'] ?? 'http://localhost:5173',
+  
+  // Shared storage domain (for cross-subdomain user info sharing)
+  sharedStorageDomain: process.env['SHARED_STORAGE_DOMAIN'] ?? '.localhost',
 } as const;
 
 export type Config = typeof config;

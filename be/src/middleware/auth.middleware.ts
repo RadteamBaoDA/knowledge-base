@@ -1,4 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
+import { log } from '../services/logger.service.js';
+
+// Extend Express Session to include user data
+declare module 'express-session' {
+  interface SessionData {
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+      displayName: string;
+      avatar?: string | undefined;
+    };
+    oauthState?: string | undefined;
+    accessToken?: string | undefined;
+  }
+}
 
 // Extend Express Request type to include user
 declare global {
@@ -7,36 +23,56 @@ declare global {
       id: string;
       email: string;
       name: string;
+      displayName: string;
+      avatar?: string | undefined;
     }
   }
 }
 
 /**
  * Middleware to check if user is authenticated
+ * Returns 401 if not authenticated (for API routes)
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  if (req.isAuthenticated?.() && req.user) {
+  // Check session-based authentication
+  if (req.session?.user) {
+    req.user = req.session.user;
+    log.debug('User authenticated via session', { userId: req.user.id, email: req.user.email });
     next();
     return;
   }
 
-  // For development: allow mock user
-  if (process.env['NODE_ENV'] === 'development') {
-    req.user = {
-      id: 'dev-user-001',
-      email: 'dev@example.com',
-      name: 'Development User',
-    };
-    next();
-    return;
-  }
+  // No session found - return 401
+  // NOTE: Auto dev user has been removed to fix logout issues
+  // Use POST /api/auth/dev-login endpoint for development
+  log.debug('Unauthorized request - no session', { 
+    path: req.path, 
+    sessionId: req.sessionID?.substring(0, 8) 
+  });
+  res.status(401).json({ error: 'Unauthorized', message: 'Session not found or expired' });
+}
 
-  res.status(401).json({ error: 'Unauthorized' });
+/**
+ * Middleware to check session (soft check - doesn't block, just sets user)
+ * Use this for routes that work with or without auth
+ */
+export function checkSession(req: Request, _res: Response, next: NextFunction): void {
+  if (req.session?.user) {
+    req.user = req.session.user;
+  }
+  next();
 }
 
 /**
  * Get current user from request
  */
 export function getCurrentUser(req: Request): Express.User | undefined {
+  // Check session first
+  if (req.session?.user) {
+    return req.session.user;
+  }
+  
+  // Fall back to req.user (for dev mode)
   return req.user;
 }
+

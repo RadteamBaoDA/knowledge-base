@@ -1,0 +1,78 @@
+{
+  "common": {
+    "appName": "Knowledge Base",
+    "appDescription": "AI Chat & Search powered by RAGFlow",
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "settings": "Settings",
+    "checkingSession": "Checking session...",
+    "signingOut": "Signing out..."
+  },
+  "nav": {
+    "aiChat": "AI Chat",
+    "aiSearch": "AI Search",
+    "history": "History",
+    "signOut": "Sign Out",
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu"
+  },
+  "login": {
+    "subtitle": "AI Chat & Search powered by RAGFlow",
+    "signInMicrosoft": "Sign in with Microsoft",
+    "devUser": "Continue as Dev User",
+    "signInPrompt": "Sign in to access the AI knowledge base",
+    "error": "Login failed"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "languageEn": "English",
+    "languageVi": "Tiếng Việt",
+    "languageJa": "日本語"
+  },
+  "history": {
+    "loading": "Loading chat history...",
+    "errorLoading": "Error loading chat history",
+    "searchPlaceholder": "Search by title or message content...",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "search": "Search",
+    "clear": "Clear",
+    "sessionsFound": "{{count}} sessions found",
+    "selectAll": "Select all",
+    "selected": "{{count}} selected",
+    "deleteSelected": "Delete Selected ({{count}})",
+    "deleteAll": "Delete All",
+    "deleteSession": "Delete session",
+    "noMatchingResults": "No sessions match your search criteria.",
+    "noHistory": "No chat history yet. Start a conversation in AI Chat!",
+    "messageCount": "{{count}} messages",
+    "confirmDelete": "Confirm Delete",
+    "confirmDeleteMessage": "Are you sure you want to delete {{count}} selected session(s)? This action cannot be undone.",
+    "deleteAllTitle": "Delete All History",
+    "deleteAllMessage": "Are you sure you want to delete ALL chat sessions? This will permanently remove all your chat history and cannot be undone.",
+    "deleting": "Deleting..."
+  },
+  "pages": {
+    "aiChat": {
+      "title": "AI Chat",
+      "description": "Chat with AI assistant powered by your knowledge base"
+    },
+    "aiSearch": {
+      "title": "AI Search",
+      "description": "Search through your knowledge base with AI"
+    },
+    "history": {
+      "title": "Chat History",
+      "description": "View your past conversations"
+    }
+  }
+}

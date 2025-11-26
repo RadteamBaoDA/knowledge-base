@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "RAGFlow knowledge-base proxy with Langfuse logging",
   "private": true,
+  "type": "module",
   "workspaces": [
     "be",
     "fe"
@@ -11,6 +12,8 @@
     "dev": "concurrently \"npm run dev:be\" \"npm run dev:fe\"",
     "dev:be": "npm run dev --workspace=be",
     "dev:fe": "npm run dev --workspace=fe",
+    "dev:https": "concurrently \"npm run dev:be\" \"npm run dev:fe\"",
+    "generate:cert": "node scripts/generate-cert.js",
     "build": "npm run build --workspaces",
     "build:be": "npm run build --workspace=be",
     "build:fe": "npm run build --workspace=fe",
@@ -18,7 +21,8 @@
     "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "dotenv": "^16.4.5"
   },
   "engines": {
     "node": ">=18.0.0"

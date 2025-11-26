@@ -1,0 +1,78 @@
+{
+  "common": {
+    "appName": "ナレッジベース",
+    "appDescription": "RAGFlow搭載のAIチャット＆検索",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "delete": "削除",
+    "settings": "設定",
+    "checkingSession": "セッションを確認中...",
+    "signingOut": "サインアウト中..."
+  },
+  "nav": {
+    "aiChat": "AIチャット",
+    "aiSearch": "AI検索",
+    "history": "履歴",
+    "signOut": "サインアウト",
+    "expandMenu": "メニューを展開",
+    "collapseMenu": "メニューを折りたたむ"
+  },
+  "login": {
+    "subtitle": "RAGFlow搭載のAIチャット＆検索",
+    "signInMicrosoft": "Microsoftでサインイン",
+    "devUser": "開発ユーザーとして続行",
+    "signInPrompt": "AIナレッジベースにアクセスするにはサインインしてください",
+    "error": "ログインに失敗しました"
+  },
+  "settings": {
+    "title": "設定",
+    "language": "言語",
+    "theme": "テーマ",
+    "themeLight": "ライト",
+    "themeDark": "ダーク",
+    "themeSystem": "システム",
+    "languageEn": "English",
+    "languageVi": "Tiếng Việt",
+    "languageJa": "日本語"
+  },
+  "history": {
+    "loading": "チャット履歴を読み込み中...",
+    "errorLoading": "チャット履歴の読み込みエラー",
+    "searchPlaceholder": "タイトルまたはメッセージ内容で検索...",
+    "startDate": "開始日",
+    "endDate": "終了日",
+    "search": "検索",
+    "clear": "クリア",
+    "sessionsFound": "{{count}}件のセッションが見つかりました",
+    "selectAll": "すべて選択",
+    "selected": "{{count}}件選択中",
+    "deleteSelected": "選択を削除 ({{count}})",
+    "deleteAll": "すべて削除",
+    "deleteSession": "セッションを削除",
+    "noMatchingResults": "検索条件に一致するセッションはありません。",
+    "noHistory": "チャット履歴はまだありません。AIチャットで会話を始めましょう！",
+    "messageCount": "{{count}}件のメッセージ",
+    "confirmDelete": "削除の確認",
+    "confirmDeleteMessage": "選択した{{count}}件のセッションを削除してもよろしいですか？この操作は元に戻せません。",
+    "deleteAllTitle": "すべての履歴を削除",
+    "deleteAllMessage": "すべてのチャットセッションを削除してもよろしいですか？これにより、すべてのチャット履歴が完全に削除され、元に戻すことはできません。",
+    "deleting": "削除中..."
+  },
+  "pages": {
+    "aiChat": {
+      "title": "AIチャット",
+      "description": "ナレッジベースを活用したAIアシスタントとチャット"
+    },
+    "aiSearch": {
+      "title": "AI検索",
+      "description": "AIでナレッジベースを検索"
+    },
+    "history": {
+      "title": "チャット履歴",
+      "description": "過去の会話を表示"
+    }
+  }
+}
