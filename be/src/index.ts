@@ -3,6 +3,7 @@ import https from 'https';
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import session from 'express-session';
 import { createClient } from 'redis';
 import { RedisStore } from 'connect-redis';
@@ -41,6 +42,9 @@ app.use(cors({
   origin: config.frontendUrl,
   credentials: true,
 }));
+
+// Compression middleware
+app.use(compression());
 
 // Initialize Redis store (connect-redis v9 uses named export)
 const redisStore = new RedisStore({
@@ -113,10 +117,10 @@ const startServer = async (): Promise<http.Server | https.Server> => {
     log.error('Failed to connect to Redis', { error: err instanceof Error ? err.message : String(err) });
     log.warn('Sessions will use memory store (not recommended for production)');
   }
-  
+
   let server: http.Server | https.Server;
   const protocol = config.https.enabled ? 'https' : 'http';
-  
+
   if (config.https.enabled) {
     const credentials = config.https.getCredentials();
     if (credentials) {
@@ -129,7 +133,7 @@ const startServer = async (): Promise<http.Server | https.Server> => {
   } else {
     server = http.createServer(app);
   }
-  
+
   server.listen(config.port, async () => {
     log.info(`Backend server started`, {
       url: `${protocol}://${config.devDomain}:${config.port}`,
@@ -137,7 +141,7 @@ const startServer = async (): Promise<http.Server | https.Server> => {
       https: config.https.enabled,
       sessionTTL: `${config.session.ttlSeconds / 86400} days`,
     });
-    
+
     // Check database connection
     const dbConnected = await checkConnection();
     if (dbConnected) {
@@ -150,28 +154,30 @@ const startServer = async (): Promise<http.Server | https.Server> => {
   return server;
 };
 
-const serverPromise = startServer();
+// Only start server if this file is run directly or not in test mode
+// The import.meta.url check can be flaky on Windows with tsx
+const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITEST;
+if (!isTest) {
+  startServer();
+}
 
 // Graceful shutdown
-const gracefulShutdown = async (signal: string) => {
+const gracefulShutdown = async (server: http.Server | https.Server, signal: string) => {
   log.info(`${signal} received, shutting down gracefully...`);
   await shutdownLangfuse();
   await closePool();
-  
+
   // Close Redis connection
   if (redisClient.isOpen) {
     await redisClient.quit();
     log.info('Redis connection closed');
   }
-  
-  const server = await serverPromise;
+
   server.close(() => {
     log.info('Server closed');
     process.exit(0);
   });
 };
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+export { app, startServer, gracefulShutdown };
 
-export default app;

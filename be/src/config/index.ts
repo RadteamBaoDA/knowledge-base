@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { log } from '../services/logger.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,9 +16,28 @@ const sslCertPath = join(certsDir, 'cert.pem');
 
 const hasSSLCerts = existsSync(sslKeyPath) && existsSync(sslCertPath);
 
+const nodeEnv = process.env['NODE_ENV'] ?? 'development';
+const isProduction = nodeEnv === 'production';
+
+// Helper to get required env var in production
+const getEnv = (key: string, defaultValue?: string): string => {
+  const value = process.env[key];
+  if (!value) {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+    if (isProduction) {
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+    return ''; // Return empty string in dev if not required
+  }
+  return value;
+};
+
 export const config = {
   port: parseInt(process.env['PORT'] ?? '3001', 10),
-  nodeEnv: process.env['NODE_ENV'] ?? 'development',
+  nodeEnv,
+  isProduction,
   
   // HTTPS/SSL Configuration
   https: {
@@ -56,9 +76,9 @@ export const config = {
   },
   
   azureAd: {
-    clientId: process.env['AZURE_AD_CLIENT_ID'] ?? '',
-    clientSecret: process.env['AZURE_AD_CLIENT_SECRET'] ?? '',
-    tenantId: process.env['AZURE_AD_TENANT_ID'] ?? '',
+    clientId: getEnv('AZURE_AD_CLIENT_ID', ''),
+    clientSecret: getEnv('AZURE_AD_CLIENT_SECRET', ''),
+    tenantId: getEnv('AZURE_AD_TENANT_ID', ''),
     redirectUri: process.env['AZURE_AD_REDIRECT_URI'] ?? 'http://localhost:3001/api/auth/callback',
   },
   
@@ -80,7 +100,7 @@ export const config = {
   },
   
   session: {
-    secret: process.env['SESSION_SECRET'] ?? 'change-me-in-production',
+    secret: getEnv('SESSION_SECRET', isProduction ? undefined : 'change-me-in-production'),
     // Session TTL: 7 days in seconds
     ttlSeconds: parseInt(process.env['SESSION_TTL_DAYS'] ?? '7', 10) * 24 * 60 * 60,
   },
@@ -92,3 +112,4 @@ export const config = {
 } as const;
 
 export type Config = typeof config;
+

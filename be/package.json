@@ -2,6 +2,7 @@
   "name": "knowledge-base-backend",
   "version": "1.0.0",
   "description": "Backend proxy for RAGFlow AI Chat and AI Search with Langfuse logging",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -20,6 +21,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "compression": "^1.8.1",
     "connect-redis": "^9.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -35,6 +37,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.0",

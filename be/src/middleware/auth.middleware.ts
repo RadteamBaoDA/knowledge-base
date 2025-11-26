@@ -26,6 +26,10 @@ declare global {
       displayName: string;
       avatar?: string | undefined;
     }
+
+    interface Request {
+      user?: User;
+    }
   }
 }
 
@@ -45,9 +49,9 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   // No session found - return 401
   // NOTE: Auto dev user has been removed to fix logout issues
   // Use POST /api/auth/dev-login endpoint for development
-  log.debug('Unauthorized request - no session', { 
-    path: req.path, 
-    sessionId: req.sessionID?.substring(0, 8) 
+  log.debug('Unauthorized request - no session', {
+    path: req.path,
+    sessionId: req.sessionID?.substring(0, 8)
   });
   res.status(401).json({ error: 'Unauthorized', message: 'Session not found or expired' });
 }
@@ -71,7 +75,7 @@ export function getCurrentUser(req: Request): Express.User | undefined {
   if (req.session?.user) {
     return req.session.user;
   }
-  
+
   // Fall back to req.user (for dev mode)
   return req.user;
 }

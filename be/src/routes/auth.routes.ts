@@ -37,14 +37,14 @@ setInterval(() => {
   }
 }, 60 * 1000); // Every minute
 
-// Dev user for testing UI
-const DEV_USER = {
+// Dev user for testing UI - ONLY available in development
+const DEV_USER = config.nodeEnv === 'development' ? {
   id: 'dev-user-001',
   email: 'john.doe@contoso.com',
   name: 'John Doe',
   displayName: 'John Doe',
   avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=3b82f6&color=fff&size=128',
-};
+} : null;
 
 /**
  * GET /api/auth/me
@@ -53,15 +53,15 @@ const DEV_USER = {
  */
 router.get('/me', (req: Request, res: Response) => {
   const user = getCurrentUser(req);
-  
-  log.debug('Auth /me request', { 
-    hasUser: !!user, 
+
+  log.debug('Auth /me request', {
+    hasUser: !!user,
     hasSessionUser: !!req.session?.user,
     sessionId: req.sessionID?.substring(0, 8),
     nodeEnv: config.nodeEnv,
     cookieHeader: req.headers.cookie?.substring(0, 50),
   });
-  
+
   // Check if user exists in session (authenticated via Azure AD)
   if (user) {
     log.info('Returning authenticated user', { userId: user.id, email: user.email });
@@ -74,7 +74,7 @@ router.get('/me', (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   // No user in session - return 401
   // NOTE: Dev mode auto-login has been removed to fix logout issues
   // Use the "Continue as Dev User" button on the login page for development
@@ -89,32 +89,32 @@ router.get('/me', (req: Request, res: Response) => {
  */
 router.post('/dev-login', (req: Request, res: Response) => {
   // Only allow in development mode
-  if (config.nodeEnv !== 'development') {
+  if (config.nodeEnv !== 'development' || !DEV_USER) {
     log.warn('Dev login attempted in non-development environment');
     res.status(403).json({ error: 'Dev login only available in development mode' });
     return;
   }
-  
+
   const redirectUrl = req.body?.redirect as string | undefined;
-  
+
   log.info('Dev user login initiated');
-  
+
   // Store dev user in session (creates a real session)
   req.session.user = DEV_USER;
-  
+
   req.session.save((err) => {
     if (err) {
       log.error('Failed to save dev user session', { error: err.message });
       res.status(500).json({ error: 'Failed to create session' });
       return;
     }
-    
-    log.info('Dev user logged in successfully', { 
-      userId: DEV_USER.id, 
+
+    log.info('Dev user logged in successfully', {
+      userId: DEV_USER.id,
       sessionId: req.sessionID?.substring(0, 8),
     });
-    
-    res.json({ 
+
+    res.json({
       success: true,
       user: DEV_USER,
       redirectUrl: redirectUrl || '/',
@@ -130,19 +130,24 @@ router.get('/login', (req: Request, res: Response) => {
   // Generate state for CSRF protection
   const state = generateState();
   const redirectUrl = req.query['redirect'] as string | undefined;
-  
+
   // Store state in memory store (PRIMARY - always works)
   // Session-based state may fail due to port differences between frontend proxy and callback
-  oauthStateStore.set(state, { 
+  const stateData: OAuthStateData = {
     timestamp: Date.now(),
-    redirectUrl: redirectUrl,
     sessionId: req.sessionID,
-  });
-  
+  };
+
+  if (redirectUrl) {
+    stateData.redirectUrl = redirectUrl;
+  }
+
+  oauthStateStore.set(state, stateData);
+
   // Also try to store in session (may not work across ports)
   req.session.oauthState = state;
-  
-  log.info('OAuth login initiated', { 
+
+  log.info('OAuth login initiated', {
     state: state.substring(0, 8) + '...',
     sessionId: req.sessionID?.substring(0, 8),
     redirect: redirectUrl,
@@ -193,7 +198,7 @@ router.get('/callback', async (req: Request, res: Response) => {
   // Validate state - memory store is PRIMARY, session is fallback
   // Memory store handles the case where session cookies don't persist across ports
   const stateValid = memoryStateData !== undefined || (state && state === sessionState);
-  
+
   if (!state || !stateValid) {
     log.error('OAuth state validation failed', {
       receivedState: typeof state === 'string' ? state.substring(0, 8) : 'missing',
@@ -219,7 +224,7 @@ router.get('/callback', async (req: Request, res: Response) => {
 
   try {
     log.debug('Exchanging authorization code for tokens');
-    
+
     // Exchange code for tokens
     const tokens = await exchangeCodeForTokens(code);
     log.debug('Token exchange successful');
@@ -227,8 +232,8 @@ router.get('/callback', async (req: Request, res: Response) => {
     // Get user profile from Microsoft Graph
     log.debug('Fetching user profile from Microsoft Graph');
     const user = await getUserProfile(tokens.access_token);
-    log.info('User authenticated successfully', { 
-      userId: user.id, 
+    log.info('User authenticated successfully', {
+      userId: user.id,
       email: user.email,
       name: user.displayName,
     });
@@ -245,7 +250,7 @@ router.get('/callback', async (req: Request, res: Response) => {
       if (err) {
         log.error('Failed to save session after login', { error: err.message });
       }
-      
+
       // Get redirect URL from memory state data or default to frontend
       const redirectUrl = memoryStateData?.redirectUrl || config.frontendUrl;
       log.info('Login complete, redirecting', { redirectUrl });
@@ -265,13 +270,13 @@ router.get('/callback', async (req: Request, res: Response) => {
 router.get('/logout', (req: Request, res: Response) => {
   const user = getCurrentUser(req);
   log.info('User logout initiated', { userId: user?.id, email: user?.email });
-  
+
   // Clear session first, then redirect to login page
   req.session.destroy((err) => {
     if (err) {
       log.error('Session destroy error during logout', { error: err.message });
     }
-    
+
     // Clear session cookie
     res.clearCookie('connect.sid', {
       path: '/',
@@ -279,7 +284,7 @@ router.get('/logout', (req: Request, res: Response) => {
       secure: config.https.enabled,
       sameSite: 'lax',
     });
-    
+
     // Redirect directly to login page (local logout only, not Azure AD logout)
     // This allows users to login with a different Azure account without logging out of Azure
     const loginPageUrl = `${config.frontendUrl}/login`;
@@ -295,14 +300,14 @@ router.get('/logout', (req: Request, res: Response) => {
 router.post('/logout', (req: Request, res: Response) => {
   const user = getCurrentUser(req);
   log.info('User logout (POST) initiated', { userId: user?.id, email: user?.email });
-  
+
   req.session.destroy((err) => {
     if (err) {
       log.error('Session destroy error during POST logout', { error: err.message });
       res.status(500).json({ error: 'Logout failed' });
       return;
     }
-    
+
     // Clear session cookie
     res.clearCookie('connect.sid', {
       path: '/',
@@ -310,9 +315,9 @@ router.post('/logout', (req: Request, res: Response) => {
       secure: config.https.enabled,
       sameSite: 'lax',
     });
-    
+
     log.info('User logged out successfully');
-    res.json({ 
+    res.json({
       message: 'Logged out successfully',
       redirectUrl: `${config.frontendUrl}/login`,
     });

@@ -10,6 +10,7 @@ interface SettingsContextType {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => void;
   isDarkMode: boolean;
+  resolvedTheme: 'light' | 'dark';
   isSettingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
@@ -63,7 +64,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
     const updateDarkMode = () => {
       const shouldBeDark = theme === 'dark' || (theme === 'system' && getSystemTheme() === 'dark');
       setIsDarkMode(shouldBeDark);
-      
+
       // Apply dark class to document
       if (shouldBeDark) {
         document.documentElement.classList.add('dark');
@@ -112,6 +113,7 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
         language,
         setLanguage,
         isDarkMode,
+        resolvedTheme: isDarkMode ? 'dark' : 'light',
         isSettingsOpen,
         openSettings,
         closeSettings,
