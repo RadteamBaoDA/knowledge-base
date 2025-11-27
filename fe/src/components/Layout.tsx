@@ -12,8 +12,7 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
-  ChevronRight,
-  Library
+  ChevronRight
 } from 'lucide-react';
 
 function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
@@ -73,12 +72,11 @@ function Layout() {
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} mb-8 pb-4 border-b border-white/10`}>
           {!isCollapsed && (
             <div className="flex items-center gap-3 text-xl font-bold text-white">
-              <div className="p-2 bg-primary rounded-lg">
-                <Library size={24} className="text-white" />
-              </div>
-              <span className="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                {t('common.appName')}
-              </span>
+              <img
+                src="/src/assets/logo.png"
+                alt="Olympus FPT Knowledge Base"
+                className="h-8 w-auto object-contain"
+              />
             </div>
           )}
           <button
