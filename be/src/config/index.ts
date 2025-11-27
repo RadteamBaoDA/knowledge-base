@@ -69,22 +69,31 @@ export const config = {
     aiSearchUrl: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
 
     // Dynamic sources configuration
-    sources: [
+    // Dynamic sources configuration
+    chatSources: [
       {
         id: 'default-chat',
         name: 'Default Chat',
-        type: 'chat',
         url: process.env['RAGFLOW_AI_CHAT_URL'] ?? '',
       },
       {
+        id: 'chat1',
+        name: 'Chat 1',
+        url: process.env['RAGFLOW_AI_CHAT_URL'] ?? '',
+      },
+    ],
+    searchSources: [
+      {
         id: 'default-search',
         name: 'Default Search',
-        type: 'search',
         url: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
       },
-      // Example of another source (can be added via env or hardcoded for now)
-      // { id: 'kb-2', name: 'Knowledge Base 2', type: 'chat', url: '...' }
-    ] as const,
+      {
+        id: 'search1',
+        name: 'Search 1',
+        url: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
+      },
+    ],
   },
 
   langfuse: {

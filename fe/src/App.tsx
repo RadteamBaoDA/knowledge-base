@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { RagflowProvider } from './contexts/RagflowContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SettingsDialog from './components/SettingsDialog';
 import Layout from './components/Layout';
@@ -30,39 +31,41 @@ function App() {
     if (config.features.enableAiChat) return '/ai-chat';
     if (config.features.enableAiSearch) return '/ai-search';
     if (config.features.enableHistory) return '/history';
-    return '/'; // Fallback if everything is disabled (shouldn't happen in practice)
+    return '/ai-chat'; // fallback
   };
 
   return (
-    <SettingsProvider>
-      <AuthProvider>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/logout" element={<LogoutPage />} />
+    <AuthProvider>
+      <SettingsProvider>
+        <RagflowProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/logout" element={<LogoutPage />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to={getDefaultPath()} replace />} />
-              {config.features.enableAiChat && <Route path="ai-chat" element={<AiChatPage />} />}
-              {config.features.enableAiSearch && <Route path="ai-search" element={<AiSearchPage />} />}
-              {config.features.enableHistory && <Route path="history" element={<HistoryPage />} />}
-            </Route>
-          </Routes>
-        </Suspense>
+              {/* Protected routes */}
+              <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                <Route path="/" element={<Navigate to={getDefaultPath()} replace />} />
 
-        {/* Global Settings Dialog */}
-        <SettingsDialog />
-      </AuthProvider>
-    </SettingsProvider>
+                {config.features.enableAiChat && (
+                  <Route path="/ai-chat" element={<AiChatPage />} />
+                )}
+
+                {config.features.enableAiSearch && (
+                  <Route path="/ai-search" element={<AiSearchPage />} />
+                )}
+
+                {config.features.enableHistory && (
+                  <Route path="/history" element={<HistoryPage />} />
+                )}
+              </Route>
+            </Routes>
+          </Suspense>
+          <SettingsDialog />
+        </RagflowProvider>
+      </SettingsProvider>
+    </AuthProvider>
   );
 }
 

@@ -35,11 +35,11 @@
 
 @layer components {
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 text-slate-200 rounded-lg transition-colors hover:bg-white/10;
+    @apply flex items-center gap-3 px-4 py-2.5 text-slate-200 rounded-md transition-colors border border-transparent hover:border-slate-500;
   }
 
   .sidebar-link.active {
-    @apply bg-primary;
+    @apply bg-yellow-400 text-slate-900 border-yellow-400 font-medium;
   }
 
   .btn {
@@ -62,5 +62,39 @@
   /* Input styles */
   .input {
     @apply w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+
+  /* RAGFlow dropdown select styles */
+  .ragflow-select {
+    @apply bg-transparent border-none focus:outline-none focus:ring-0 text-sm font-medium text-slate-700 dark:text-slate-200 cursor-pointer pr-6;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: none;
+  }
+
+  .ragflow-select option {
+    @apply py-2 px-3;
+    background-color: white;
+    color: #0f172a;
+  }
+
+  .dark .ragflow-select option {
+    background-color: #1e293b;
+    color: #f1f5f9;
+  }
+
+  .ragflow-select option:hover,
+  .ragflow-select option:focus,
+  .ragflow-select option:checked {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+    color: #3b82f6;
+  }
+
+  .dark .ragflow-select option:hover,
+  .dark .ragflow-select option:focus,
+  .dark .ragflow-select option:checked {
+    background: linear-gradient(90deg, rgba(96, 165, 250, 0.2) 0%, rgba(96, 165, 250, 0.1) 100%);
+    color: #60a5fa;
   }
 }
