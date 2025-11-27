@@ -6,9 +6,17 @@ interface RagflowIframeProps {
   path: "chat" | "search";
 }
 
+interface RagflowSource {
+  id: string;
+  name: string;
+  type: 'chat' | 'search';
+  url: string;
+}
+
 interface RagflowConfig {
   aiChatUrl: string;
   aiSearchUrl: string;
+  sources: RagflowSource[];
 }
 
 /**
@@ -25,8 +33,10 @@ async function fetchRagflowConfig(): Promise<RagflowConfig> {
 }
 
 function RagflowIframe({ path }: RagflowIframeProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [config, setConfig] = useState<RagflowConfig | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [iframeSrc, setIframeSrc] = useState<string>('');
   const [configLoading, setConfigLoading] = useState(true);
   const [iframeLoading, setIframeLoading] = useState(true);
@@ -36,14 +46,23 @@ function RagflowIframe({ path }: RagflowIframeProps) {
   // Fetch RAGFlow config on mount
   useEffect(() => {
     fetchRagflowConfig()
-      .then((config) => {
-        // Use direct RAGFlow URL from config
-        const url = path === 'chat' ? config.aiChatUrl : config.aiSearchUrl;
-        
-        if (!url) {
-          setError(`RAGFlow ${path} URL is not configured`);
+      .then((data) => {
+        setConfig(data);
+
+        // Filter sources by type (chat/search)
+        const relevantSources = data.sources?.filter(s => s.type === path) || [];
+
+        if (relevantSources.length > 0) {
+          // Select first source by default
+          setSelectedSourceId(relevantSources[0].id);
         } else {
-          setIframeSrc(url);
+          // Fallback to legacy URL if no sources defined
+          const url = path === 'chat' ? data.aiChatUrl : data.aiSearchUrl;
+          if (!url) {
+            setError(`RAGFlow ${path} URL is not configured`);
+          } else {
+            setIframeSrc(url);
+          }
         }
         setConfigLoading(false);
       })
@@ -53,6 +72,19 @@ function RagflowIframe({ path }: RagflowIframeProps) {
         setConfigLoading(false);
       });
   }, [path]);
+
+  // Update iframe src when source or locale changes
+  useEffect(() => {
+    if (!config || !selectedSourceId) return;
+
+    const source = config.sources?.find(s => s.id === selectedSourceId);
+    if (source) {
+      // Append locale to URL
+      const separator = source.url.includes('?') ? '&' : '?';
+      const urlWithLocale = `${source.url}${separator}locale=${i18n.language}`;
+      setIframeSrc(urlWithLocale);
+    }
+  }, [config, selectedSourceId, i18n.language]);
 
   // Log iframe load event
   const handleIframeLoad = useCallback(() => {
@@ -89,28 +121,51 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     );
   }
 
+  const relevantSources = config?.sources?.filter(s => s.type === path) || [];
+
   return (
-    <div className="w-full h-[calc(100vh-140px)] border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800 relative">
-      {/* Loading overlay */}
-      {iframeLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-800 z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <div className="text-slate-500 dark:text-slate-400">
-              {path === 'chat' ? t('iframe.loadingChat') : t('iframe.loadingSearch')}
-            </div>
+    <div className="flex flex-col gap-4 h-[calc(100vh-140px)]">
+      {/* Source Selector */}
+      {relevantSources.length > 1 && (
+        <div className="flex justify-end">
+          <div className="relative inline-block text-left w-64">
+            <select
+              value={selectedSourceId}
+              onChange={(e) => setSelectedSourceId(e.target.value)}
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+            >
+              {relevantSources.map((source) => (
+                <option key={source.id} value={source.id}>
+                  {source.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       )}
-      <iframe
-        ref={iframeRef}
-        src={iframeSrc}
-        title={`RAGFlow ${path}`}
-        className="w-full h-full"
-        style={{ border: 'none' }}
-        allow="clipboard-read; clipboard-write"
-        onLoad={handleIframeLoad}
-      />
+
+      <div className="flex-1 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800 relative">
+        {/* Loading overlay */}
+        {iframeLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-800 z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <div className="text-slate-500 dark:text-slate-400">
+                {path === 'chat' ? t('iframe.loadingChat') : t('iframe.loadingSearch')}
+              </div>
+            </div>
+          </div>
+        )}
+        <iframe
+          ref={iframeRef}
+          src={iframeSrc}
+          title={`RAGFlow ${path}`}
+          className="w-full h-full"
+          style={{ border: 'none' }}
+          allow="clipboard-read; clipboard-write"
+          onLoad={handleIframeLoad}
+        />
+      </div>
     </div>
   );
 }

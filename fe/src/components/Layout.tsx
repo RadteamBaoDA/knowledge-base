@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, User } from '../hooks/useAuth';
 import { useSettings } from '../contexts/SettingsContext';
+import { config } from '../config';
 import {
   MessageSquare,
   Search,
@@ -88,36 +89,44 @@ function Layout() {
         </div>
 
         <nav className="flex flex-col gap-2 flex-1">
-          <NavLink
-            to="/ai-chat"
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
-            }
-            title={t('nav.aiChat')}
-          >
-            <MessageSquare size={20} />
-            {!isCollapsed && <span>{t('nav.aiChat')}</span>}
-          </NavLink>
-          <NavLink
-            to="/ai-search"
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
-            }
-            title={t('nav.aiSearch')}
-          >
-            <Search size={20} />
-            {!isCollapsed && <span>{t('nav.aiSearch')}</span>}
-          </NavLink>
-          <NavLink
-            to="/history"
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
-            }
-            title={t('nav.history')}
-          >
-            <History size={20} />
-            {!isCollapsed && <span>{t('nav.history')}</span>}
-          </NavLink>
+          {config.features.enableAiChat && (
+            <NavLink
+              to="/ai-chat"
+              className={({ isActive }) =>
+                `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
+              }
+              title={t('nav.aiChat')}
+            >
+              <MessageSquare size={20} />
+              {!isCollapsed && <span>{t('nav.aiChat')}</span>}
+            </NavLink>
+          )}
+
+          {config.features.enableAiSearch && (
+            <NavLink
+              to="/ai-search"
+              className={({ isActive }) =>
+                `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
+              }
+              title={t('nav.aiSearch')}
+            >
+              <Search size={20} />
+              {!isCollapsed && <span>{t('nav.aiSearch')}</span>}
+            </NavLink>
+          )}
+
+          {config.features.enableHistory && (
+            <NavLink
+              to="/history"
+              className={({ isActive }) =>
+                `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
+              }
+              title={t('nav.history')}
+            >
+              <History size={20} />
+              {!isCollapsed && <span>{t('nav.history')}</span>}
+            </NavLink>
+          )}
         </nav>
 
         {/* User info, settings and logout at bottom */}

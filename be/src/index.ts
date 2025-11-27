@@ -13,6 +13,7 @@ import { shutdownLangfuse } from './services/langfuse.service.js';
 import { checkConnection, closePool } from './db/index.js';
 import authRoutes from './routes/auth.routes.js';
 import ragflowRoutes from './routes/ragflow.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
@@ -20,6 +21,9 @@ const app = express();
 const redisClient = createClient({
   url: config.redis.url,
 });
+
+// Determine if we should use Redis (default to true in production, false in dev unless specified)
+const useRedis = config.nodeEnv === 'production' || process.env['USE_REDIS'] === 'true';
 
 redisClient.on('error', (err) => {
   log.error('Redis client error', { error: err.message });
@@ -47,11 +51,11 @@ app.use(cors({
 app.use(compression());
 
 // Initialize Redis store (connect-redis v9 uses named export)
-const redisStore = new RedisStore({
+const redisStore = useRedis ? new RedisStore({
   client: redisClient,
   prefix: 'kb:sess:',
   ttl: config.session.ttlSeconds, // 7 days default
-});
+}) : undefined;
 
 // Session configuration with Redis store
 app.use(session({
@@ -100,6 +104,7 @@ app.get('/health', (_req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/ragflow', ragflowRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -109,13 +114,21 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 // Start server (HTTP or HTTPS based on config)
 const startServer = async (): Promise<http.Server | https.Server> => {
-  // Connect to Redis
-  try {
-    await redisClient.connect();
-    log.info('Redis connected', { url: config.redis.url.replace(/:[^:@]*@/, ':***@') });
-  } catch (err) {
-    log.error('Failed to connect to Redis', { error: err instanceof Error ? err.message : String(err) });
-    log.warn('Sessions will use memory store (not recommended for production)');
+  // Connect to Redis if enabled
+  if (useRedis) {
+    try {
+      await redisClient.connect();
+      log.info('Redis connected', { url: config.redis.url.replace(/:[^:@]*@/, ':***@') });
+    } catch (err) {
+      log.error('Failed to connect to Redis', { error: err instanceof Error ? err.message : String(err) });
+      // Note: If connection fails here, the app has already been configured with RedisStore
+      // and will likely fail. In production, this should be fatal.
+      if (config.nodeEnv === 'production') {
+        throw err;
+      }
+    }
+  } else {
+    log.info('Using MemoryStore for sessions (development mode)');
   }
 
   let server: http.Server | https.Server;
@@ -180,4 +193,3 @@ const gracefulShutdown = async (server: http.Server | https.Server, signal: stri
 };
 
 export { app, startServer, gracefulShutdown };
-

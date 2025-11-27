@@ -99,25 +99,34 @@ router.post('/dev-login', (req: Request, res: Response) => {
 
   log.info('Dev user login initiated');
 
-  // Store dev user in session (creates a real session)
-  req.session.user = DEV_USER;
-
-  req.session.save((err) => {
+  // Regenerate session to prevent session fixation and ensure clean state
+  req.session.regenerate((err) => {
     if (err) {
-      log.error('Failed to save dev user session', { error: err.message });
+      log.error('Failed to regenerate session for dev login', { error: err.message });
       res.status(500).json({ error: 'Failed to create session' });
       return;
     }
 
-    log.info('Dev user logged in successfully', {
-      userId: DEV_USER.id,
-      sessionId: req.sessionID?.substring(0, 8),
-    });
+    // Store dev user in session
+    req.session.user = DEV_USER;
 
-    res.json({
-      success: true,
-      user: DEV_USER,
-      redirectUrl: redirectUrl || '/',
+    req.session.save((err) => {
+      if (err) {
+        log.error('Failed to save dev user session', { error: err.message });
+        res.status(500).json({ error: 'Failed to create session' });
+        return;
+      }
+
+      log.info('Dev user logged in successfully', {
+        userId: DEV_USER.id,
+        sessionId: req.sessionID?.substring(0, 8),
+      });
+
+      res.json({
+        success: true,
+        user: DEV_USER,
+        redirectUrl: redirectUrl || '/',
+      });
     });
   });
 });
@@ -131,37 +140,46 @@ router.get('/login', (req: Request, res: Response) => {
   const state = generateState();
   const redirectUrl = req.query['redirect'] as string | undefined;
 
-  // Store state in memory store (PRIMARY - always works)
-  // Session-based state may fail due to port differences between frontend proxy and callback
-  const stateData: OAuthStateData = {
-    timestamp: Date.now(),
-    sessionId: req.sessionID,
-  };
-
-  if (redirectUrl) {
-    stateData.redirectUrl = redirectUrl;
-  }
-
-  oauthStateStore.set(state, stateData);
-
-  // Also try to store in session (may not work across ports)
-  req.session.oauthState = state;
-
-  log.info('OAuth login initiated', {
-    state: state.substring(0, 8) + '...',
-    sessionId: req.sessionID?.substring(0, 8),
-    redirect: redirectUrl,
-    storeSize: oauthStateStore.size,
-  });
-
-  // Save session before redirect
-  req.session.save((err) => {
+  // Regenerate session before starting OAuth flow to ensure clean state
+  req.session.regenerate((err) => {
     if (err) {
-      log.error('Failed to save session before OAuth redirect', { error: err.message });
+      log.error('Failed to regenerate session for OAuth login', { error: err.message });
+      res.redirect(`${config.frontendUrl}/login?error=session_error`);
+      return;
     }
-    const authUrl = getAuthorizationUrl(state);
-    log.debug('Redirecting to Azure AD', { authUrl: authUrl.substring(0, 100) + '...' });
-    res.redirect(authUrl);
+
+    // Store state in memory store (PRIMARY - always works)
+    // Session-based state may fail due to port differences between frontend proxy and callback
+    const stateData: OAuthStateData = {
+      timestamp: Date.now(),
+      sessionId: req.sessionID,
+    };
+
+    if (redirectUrl) {
+      stateData.redirectUrl = redirectUrl;
+    }
+
+    oauthStateStore.set(state, stateData);
+
+    // Also try to store in session (may not work across ports)
+    req.session.oauthState = state;
+
+    log.info('OAuth login initiated', {
+      state: state.substring(0, 8) + '...',
+      sessionId: req.sessionID?.substring(0, 8),
+      redirect: redirectUrl,
+      storeSize: oauthStateStore.size,
+    });
+
+    // Save session before redirect
+    req.session.save((err) => {
+      if (err) {
+        log.error('Failed to save session before OAuth redirect', { error: err.message });
+      }
+      const authUrl = getAuthorizationUrl(state);
+      log.debug('Redirecting to Azure AD', { authUrl: authUrl.substring(0, 100) + '...' });
+      res.redirect(authUrl);
+    });
   });
 });
 
@@ -283,6 +301,7 @@ router.get('/logout', (req: Request, res: Response) => {
       httpOnly: true,
       secure: config.https.enabled,
       sameSite: 'lax',
+      domain: config.sharedStorageDomain !== '.localhost' ? config.sharedStorageDomain : undefined,
     });
 
     // Redirect directly to login page (local logout only, not Azure AD logout)
@@ -314,6 +333,7 @@ router.post('/logout', (req: Request, res: Response) => {
       httpOnly: true,
       secure: config.https.enabled,
       sameSite: 'lax',
+      domain: config.sharedStorageDomain !== '.localhost' ? config.sharedStorageDomain : undefined,
     });
 
     log.info('User logged out successfully');

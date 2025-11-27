@@ -5,21 +5,21 @@
 @tailwind utilities;
 
 :root {
-  --primary-color: #7c3aed;
-  --primary-hover: #6d28d9;
-  --bg-color: #f8fafc;
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #e2e8f0;
+  --primary-color: #0D26CF;
+  --primary-hover: #0A1FA3;
+  --bg-color: #ffffff;
+  --sidebar-bg: #08107B;
+  --sidebar-text: #ffffff;
   --text-color: #1e293b;
   --border-color: #e2e8f0;
   --card-bg: #ffffff;
 }
 
 .dark {
-  --primary-color: #8b5cf6;
-  --primary-hover: #7c3aed;
+  --primary-color: #3D54E6;
+  --primary-hover: #0D26CF;
   --bg-color: #020617;
-  --sidebar-bg: #020617;
+  --sidebar-bg: #050a44;
   --sidebar-text: #e2e8f0;
   --text-color: #f1f5f9;
   --border-color: #1e293b;
@@ -47,7 +47,7 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-hover dark:bg-blue-500 dark:hover:bg-blue-600;
+    @apply bg-primary text-white hover:bg-primary-hover dark:bg-primary dark:hover:bg-primary-hover;
   }
 
   .btn-secondary {

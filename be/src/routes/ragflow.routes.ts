@@ -18,6 +18,7 @@ router.get('/config', (_req: Request, res: Response) => {
   res.json({
     aiChatUrl: config.ragflow.aiChatUrl,
     aiSearchUrl: config.ragflow.aiSearchUrl,
+    sources: config.ragflow.sources,
   });
 });
 

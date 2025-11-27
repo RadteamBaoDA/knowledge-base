@@ -5,6 +5,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SettingsDialog from './components/SettingsDialog';
 import Layout from './components/Layout';
+import { config } from './config';
 
 // Lazy load pages for code splitting
 const AiChatPage = lazy(() => import('./pages/AiChatPage'));
@@ -24,6 +25,14 @@ const PageLoader = () => (
 );
 
 function App() {
+  // Determine default redirect path based on enabled features
+  const getDefaultPath = () => {
+    if (config.features.enableAiChat) return '/ai-chat';
+    if (config.features.enableAiSearch) return '/ai-search';
+    if (config.features.enableHistory) return '/history';
+    return '/'; // Fallback if everything is disabled (shouldn't happen in practice)
+  };
+
   return (
     <SettingsProvider>
       <AuthProvider>
@@ -42,10 +51,10 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/ai-chat" replace />} />
-              <Route path="ai-chat" element={<AiChatPage />} />
-              <Route path="ai-search" element={<AiSearchPage />} />
-              <Route path="history" element={<HistoryPage />} />
+              <Route index element={<Navigate to={getDefaultPath()} replace />} />
+              {config.features.enableAiChat && <Route path="ai-chat" element={<AiChatPage />} />}
+              {config.features.enableAiSearch && <Route path="ai-search" element={<AiSearchPage />} />}
+              {config.features.enableHistory && <Route path="history" element={<HistoryPage />} />}
             </Route>
           </Routes>
         </Suspense>

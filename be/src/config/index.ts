@@ -38,7 +38,7 @@ export const config = {
   port: parseInt(process.env['PORT'] ?? '3001', 10),
   nodeEnv,
   isProduction,
-  
+
   // HTTPS/SSL Configuration
   https: {
     enabled: process.env['HTTPS_ENABLED'] === 'true' && hasSSLCerts,
@@ -50,10 +50,10 @@ export const config = {
       cert: readFileSync(sslCertPath),
     } : null,
   },
-  
+
   // Development domain configuration
   devDomain: process.env['DEV_DOMAIN'] ?? 'localhost',
-  
+
   database: {
     host: process.env['DB_HOST'] ?? 'localhost',
     port: parseInt(process.env['DB_PORT'] ?? '5432', 10),
@@ -61,27 +61,45 @@ export const config = {
     user: process.env['DB_USER'] ?? 'postgres',
     password: process.env['DB_PASSWORD'] ?? '',
   },
-  
+
   ragflow: {
     // Full chat iframe URL (direct URL, no proxy)
     aiChatUrl: process.env['RAGFLOW_AI_CHAT_URL'] ?? '',
     // Full search iframe URL (direct URL, no proxy)
     aiSearchUrl: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
+
+    // Dynamic sources configuration
+    sources: [
+      {
+        id: 'default-chat',
+        name: 'Default Chat',
+        type: 'chat',
+        url: process.env['RAGFLOW_AI_CHAT_URL'] ?? '',
+      },
+      {
+        id: 'default-search',
+        name: 'Default Search',
+        type: 'search',
+        url: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
+      },
+      // Example of another source (can be added via env or hardcoded for now)
+      // { id: 'kb-2', name: 'Knowledge Base 2', type: 'chat', url: '...' }
+    ] as const,
   },
-  
+
   langfuse: {
     secretKey: process.env['LANGFUSE_SECRET_KEY'] ?? '',
     publicKey: process.env['LANGFUSE_PUBLIC_KEY'] ?? '',
     baseUrl: process.env['LANGFUSE_BASE_URL'] ?? 'https://cloud.langfuse.com',
   },
-  
+
   azureAd: {
     clientId: getEnv('AZURE_AD_CLIENT_ID', ''),
     clientSecret: getEnv('AZURE_AD_CLIENT_SECRET', ''),
     tenantId: getEnv('AZURE_AD_TENANT_ID', ''),
     redirectUri: process.env['AZURE_AD_REDIRECT_URI'] ?? 'http://localhost:3001/api/auth/callback',
   },
-  
+
   redis: {
     host: process.env['REDIS_HOST'] ?? 'localhost',
     port: parseInt(process.env['REDIS_PORT'] ?? '6379', 10),
@@ -93,20 +111,20 @@ export const config = {
       const host = process.env['REDIS_HOST'] ?? 'localhost';
       const port = process.env['REDIS_PORT'] ?? '6379';
       const db = process.env['REDIS_DB'] ?? '0';
-      return password 
+      return password
         ? `redis://:${password}@${host}:${port}/${db}`
         : `redis://${host}:${port}/${db}`;
     },
   },
-  
+
   session: {
     secret: getEnv('SESSION_SECRET', isProduction ? undefined : 'change-me-in-production'),
     // Session TTL: 7 days in seconds
     ttlSeconds: parseInt(process.env['SESSION_TTL_DAYS'] ?? '7', 10) * 24 * 60 * 60,
   },
-  
+
   frontendUrl: process.env['FRONTEND_URL'] ?? 'http://localhost:5173',
-  
+
   // Shared storage domain (for cross-subdomain user info sharing)
   sharedStorageDomain: process.env['SHARED_STORAGE_DOMAIN'] ?? '.localhost',
 } as const;
