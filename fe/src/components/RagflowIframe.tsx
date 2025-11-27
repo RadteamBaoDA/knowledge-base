@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSharedUser } from '../hooks/useSharedUser';
 import { useTranslation } from 'react-i18next';
+import { userPreferences } from '../services/userPreferences';
 
 interface RagflowIframeProps {
   path: "chat" | "search";
@@ -45,16 +46,30 @@ function RagflowIframe({ path }: RagflowIframeProps) {
 
   // Fetch RAGFlow config on mount
   useEffect(() => {
-    fetchRagflowConfig()
-      .then((data) => {
+    const init = async () => {
+      try {
+        const data = await fetchRagflowConfig();
         setConfig(data);
 
         // Filter sources by type (chat/search)
         const relevantSources = data.sources?.filter(s => s.type === path) || [];
 
         if (relevantSources.length > 0) {
-          // Select first source by default
-          setSelectedSourceId(relevantSources[0].id);
+          // Try to load saved preference if user is logged in
+          let initialSourceId = relevantSources[0].id;
+
+          if (user?.id) {
+            const savedSourceId = await userPreferences.get<string>(
+              user.id,
+              `ragflow_source_${path}`
+            );
+
+            if (savedSourceId && relevantSources.some(s => s.id === savedSourceId)) {
+              initialSourceId = savedSourceId;
+            }
+          }
+
+          setSelectedSourceId(initialSourceId);
         } else {
           // Fallback to legacy URL if no sources defined
           const url = path === 'chat' ? data.aiChatUrl : data.aiSearchUrl;
@@ -64,14 +79,26 @@ function RagflowIframe({ path }: RagflowIframeProps) {
             setIframeSrc(url);
           }
         }
-        setConfigLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('[RagflowIframe] Failed to fetch config:', err);
         setError('Failed to load RAGFlow configuration');
+      } finally {
         setConfigLoading(false);
-      });
-  }, [path]);
+      }
+    };
+
+    init();
+  }, [path, user?.id]);
+
+  // Handle source selection change
+  const handleSourceChange = useCallback(async (sourceId: string) => {
+    setSelectedSourceId(sourceId);
+
+    // Save preference if user is logged in
+    if (user?.id) {
+      await userPreferences.set(user.id, `ragflow_source_${path}`, sourceId);
+    }
+  }, [path, user?.id]);
 
   // Update iframe src when source or locale changes
   useEffect(() => {
@@ -131,7 +158,7 @@ function RagflowIframe({ path }: RagflowIframeProps) {
           <div className="relative inline-block text-left w-64">
             <select
               value={selectedSourceId}
-              onChange={(e) => setSelectedSourceId(e.target.value)}
+              onChange={(e) => handleSourceChange(e.target.value)}
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md dark:bg-slate-800 dark:border-slate-700 dark:text-white"
             >
               {relevantSources.map((source) => (
