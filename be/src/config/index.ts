@@ -54,12 +54,26 @@ export const config = {
   // Development domain configuration
   devDomain: process.env['DEV_DOMAIN'] ?? 'localhost',
 
+  // Session Store Configuration
+  sessionStore: {
+    type: (process.env['SESSION_STORE'] ||
+      (isProduction ? 'redis' : 'memory')) as 'redis' | 'memory',
+  },
+
+  // Database Configuration
   database: {
+    type: (process.env['DATABASE_TYPE'] ||
+      (isProduction ? 'postgresql' : 'sqlite')) as 'postgresql' | 'sqlite',
+
+    // PostgreSQL config
     host: process.env['DB_HOST'] ?? 'localhost',
     port: parseInt(process.env['DB_PORT'] ?? '5432', 10),
     name: process.env['DB_NAME'] ?? 'knowledge_base',
     user: process.env['DB_USER'] ?? 'postgres',
     password: process.env['DB_PASSWORD'] ?? '',
+
+    // SQLite config
+    sqlitePath: process.env['SQLITE_PATH'] ?? '.data/knowledge-base.db',
   },
 
   ragflow: {

@@ -17,29 +17,33 @@ import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
-// Redis client for session storage
-const redisClient = createClient({
-  url: config.redis.url,
-});
+// Session store setup based on configuration
+let sessionStore: RedisStore | undefined;
+let redisClient: ReturnType<typeof createClient> | null = null;
 
-// Determine if we should use Redis (default to true in production, false in dev unless specified)
-const useRedis = config.nodeEnv === 'production' || process.env['USE_REDIS'] === 'true';
+if (config.sessionStore.type === 'redis') {
+  redisClient = createClient({
+    url: config.redis.url,
+  });
 
-redisClient.on('error', (err) => {
-  log.error('Redis client error', { error: err.message });
-});
+  redisClient.on('error', (err) => {
+    log.error('Redis client error', { error: err.message });
+  });
 
-redisClient.on('connect', () => {
-  log.info('Redis client connected');
-});
+  redisClient.on('connect', () => {
+    log.info('Redis client connected');
+  });
 
-redisClient.on('ready', () => {
-  log.info('Redis client ready');
-});
+  redisClient.on('ready', () => {
+    log.info('Redis client ready');
+  });
 
-redisClient.on('reconnecting', () => {
-  log.warn('Redis client reconnecting');
-});
+  redisClient.on('reconnecting', () => {
+    log.warn('Redis client reconnecting');
+  });
+} else {
+  log.info('Session store: MemoryStore (in-memory sessions)');
+}
 
 // CORS configuration - must be before other middleware
 app.use(cors({
@@ -50,16 +54,9 @@ app.use(cors({
 // Compression middleware
 app.use(compression());
 
-// Initialize Redis store (connect-redis v9 uses named export)
-const redisStore = useRedis ? new RedisStore({
-  client: redisClient,
-  prefix: 'kb:sess:',
-  ttl: config.session.ttlSeconds, // 7 days default
-}) : undefined;
-
-// Session configuration with Redis store
+// Session configuration
 app.use(session({
-  store: redisStore,
+  store: sessionStore, // undefined = MemoryStore
   secret: config.session.secret,
   resave: false,
   saveUninitialized: false,
@@ -114,21 +111,22 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 // Start server (HTTP or HTTPS based on config)
 const startServer = async (): Promise<http.Server | https.Server> => {
-  // Connect to Redis if enabled
-  if (useRedis) {
+  // Connect to Redis if configured
+  if (config.sessionStore.type === 'redis' && redisClient) {
     try {
       await redisClient.connect();
-      log.info('Redis connected', { url: config.redis.url.replace(/:[^:@]*@/, ':***@') });
+      sessionStore = new RedisStore({
+        client: redisClient,
+        prefix: 'kb:sess:',
+        ttl: config.session.ttlSeconds,
+      });
+      log.info('Session store: Redis', { url: config.redis.url.replace(/:[^:@]*@/, ':***@') });
     } catch (err) {
-      log.error('Failed to connect to Redis', { error: err instanceof Error ? err.message : String(err) });
-      // Note: If connection fails here, the app has already been configured with RedisStore
-      // and will likely fail. In production, this should be fatal.
-      if (config.nodeEnv === 'production') {
-        throw err;
-      }
+      log.warn('Failed to connect to Redis, falling back to MemoryStore', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // sessionStore remains undefined, will use MemoryStore
     }
-  } else {
-    log.info('Using MemoryStore for sessions (development mode)');
   }
 
   let server: http.Server | https.Server;
@@ -181,7 +179,7 @@ const gracefulShutdown = async (server: http.Server | https.Server, signal: stri
   await closePool();
 
   // Close Redis connection
-  if (redisClient.isOpen) {
+  if (redisClient && redisClient.isOpen) {
     await redisClient.quit();
     log.info('Redis connection closed');
   }
