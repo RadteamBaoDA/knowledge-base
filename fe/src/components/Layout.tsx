@@ -47,8 +47,10 @@ function Layout() {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAuth();
-  const { openSettings } = useSettings();
+  const { openSettings, resolvedTheme } = useSettings();
   const ragflow = useRagflow();
+
+  const logoSrc = resolvedTheme === 'dark' ? '/src/assets/logo-dark.png' : '/src/assets/logo.png';
 
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -68,12 +70,12 @@ function Layout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-sidebar-bg dark:bg-slate-950 text-sidebar-text p-4 flex flex-col transition-all duration-300`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} mb-8 pb-4 border-b border-white/10`}>
+      <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-sidebar-bg dark:bg-slate-950 text-sidebar-text flex flex-col transition-all duration-300`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} h-16 px-4 border-b border-white/10 ${resolvedTheme === 'dark' ? '' : 'bg-white'}`}>
           {!isCollapsed && (
-            <div className="flex items-center gap-3 text-xl font-bold text-white">
+            <div className="flex items-center w-full transition-all duration-300">
               <img
-                src="/src/assets/logo.png"
+                src={logoSrc}
                 alt="Olympus FPT Knowledge Base"
                 className="h-8 w-auto object-contain"
               />
@@ -81,14 +83,14 @@ function Layout() {
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+            className={`p-2 rounded-lg transition-colors ml-2 flex-shrink-0 ${resolvedTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'}`}
             title={isCollapsed ? t('nav.expandMenu') : t('nav.collapseMenu')}
           >
             {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
         </div>
 
-        <nav className="flex flex-col gap-2 flex-1">
+        <nav className="flex flex-col gap-2 flex-1 mt-4">
           {config.features.enableAiChat && (
             <NavLink to="/ai-chat" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('nav.aiChat')}>
               <MessageSquare size={20} />
@@ -109,23 +111,23 @@ function Layout() {
           )}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-white/10 space-y-3">
+        <div className={`mt-auto pt-4 border-t border-white/10 space-y-3 pb-4 ${resolvedTheme === 'dark' ? '' : 'bg-white'}`}>
           {user && (
-            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-2'}`} title={isCollapsed ? user.displayName : undefined}>
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-4'}`} title={isCollapsed ? user.displayName : undefined}>
               <UserAvatar user={user} size={isCollapsed ? 'sm' : 'md'} />
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white truncate">{user.displayName}</div>
-                  <div className="text-xs text-slate-400 truncate">{user.email}</div>
+                  <div className={`text-sm font-medium truncate ${resolvedTheme === 'dark' ? 'text-white' : 'text-slate-800'}`}>{user.displayName}</div>
+                  <div className={`text-xs truncate ${resolvedTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{user.email}</div>
                 </div>
               )}
             </div>
           )}
-          <button onClick={openSettings} className={`sidebar-link text-slate-300 hover:text-white w-full ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('common.settings')}>
+          <button onClick={openSettings} className={`sidebar-link w-full ${isCollapsed ? 'justify-center px-2' : ''} ${resolvedTheme === 'dark' ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`} title={t('common.settings')}>
             <Settings size={20} />
             {!isCollapsed && <span>{t('common.settings')}</span>}
           </button>
-          <Link to="/logout" className={`sidebar-link text-slate-400 hover:text-white ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('nav.signOut')}>
+          <Link to="/logout" className={`sidebar-link w-full ${isCollapsed ? 'justify-center px-2' : ''} ${resolvedTheme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`} title={t('nav.signOut')}>
             <LogOut size={20} />
             {!isCollapsed && <span>{t('nav.signOut')}</span>}
           </Link>
@@ -133,7 +135,7 @@ function Layout() {
       </aside>
 
       <main className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900">
-        <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-4 flex justify-between items-center">
+        <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 h-16 flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">{getPageTitle()}</h1>
 
           {showChatDropdown && (

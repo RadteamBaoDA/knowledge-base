@@ -15,6 +15,8 @@ function LoginPage() {
   const redirect = searchParams.get('redirect') || '/ai-chat';
   const { isAuthenticated, isLoading } = useAuth();
 
+  const logoSrc = resolvedTheme === 'dark' ? '/src/assets/logo-dark.png' : '/src/assets/logo.png';
+
   // Apply theme class to document for login page (since it's outside Layout)
   useEffect(() => {
     if (resolvedTheme === 'dark') {
@@ -79,12 +81,12 @@ function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg max-w-md w-full">
-        <div className="text-center mb-8">
+        <div className={`text-center mb-8 ${resolvedTheme === 'dark' ? '' : 'bg-white p-4 rounded-lg'}`}>
           <div className="flex justify-center mb-4">
             <img
-              src="/src/assets/logo.png"
+              src={logoSrc}
               alt="Olympus FPT Knowledge Base"
-              className="h-16 w-auto object-contain"
+              className="w-full h-auto object-contain"
             />
           </div>
           <p className="text-slate-600 dark:text-slate-400">{t('login.subtitle')}</p>
