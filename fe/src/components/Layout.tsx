@@ -5,6 +5,7 @@ import { useAuth, User } from '../hooks/useAuth';
 import { useSettings } from '../contexts/SettingsContext';
 import { useRagflow } from '../contexts/RagflowContext';
 import { config } from '../config';
+import { Select } from './Select';
 import {
   MessageSquare,
   Search,
@@ -73,11 +74,11 @@ function Layout() {
       <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-sidebar-bg dark:bg-slate-950 text-sidebar-text flex flex-col transition-all duration-300`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} h-16 px-4 border-b border-white/10 ${resolvedTheme === 'dark' ? '' : 'bg-white'}`}>
           {!isCollapsed && (
-            <div className="flex items-center w-full transition-all duration-300">
+            <div className="flex items-center justify-start w-full transition-all duration-300">
               <img
                 src={logoSrc}
                 alt="Olympus FPT Knowledge Base"
-                className="h-8 w-auto object-contain"
+                className="w-48 object-contain object-left"
               />
             </div>
           )}
@@ -139,47 +140,21 @@ function Layout() {
           <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">{getPageTitle()}</h1>
 
           {showChatDropdown && (
-            <div className="relative inline-block min-w-[200px]">
-              <div className="relative flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-lg border border-primary/20 dark:border-primary/30 shadow-sm hover:shadow-md transition-shadow">
-                <MessageSquare size={18} className="text-primary flex-shrink-0" />
-                <select
-                  value={ragflow.selectedChatSourceId}
-                  onChange={(e) => ragflow.setSelectedChatSource(e.target.value)}
-                  className="ragflow-select flex-1"
-                >
-                  {ragflow.config?.chatSources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {source.name}
-                    </option>
-                  ))}
-                </select>
-                <svg className="w-4 h-4 text-primary flex-shrink-0 pointer-events-none absolute right-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+            <Select
+              value={ragflow.selectedChatSourceId}
+              onChange={ragflow.setSelectedChatSource}
+              options={ragflow.config?.chatSources || []}
+              icon={<MessageSquare size={18} />}
+            />
           )}
 
           {showSearchDropdown && (
-            <div className="relative inline-block min-w-[200px]">
-              <div className="relative flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-lg border border-primary/20 dark:border-primary/30 shadow-sm hover:shadow-md transition-shadow">
-                <Search size={18} className="text-primary flex-shrink-0" />
-                <select
-                  value={ragflow.selectedSearchSourceId}
-                  onChange={(e) => ragflow.setSelectedSearchSource(e.target.value)}
-                  className="ragflow-select flex-1"
-                >
-                  {ragflow.config?.searchSources.map((source) => (
-                    <option key={source.id} value={source.id}>
-                      {source.name}
-                    </option>
-                  ))}
-                </select>
-                <svg className="w-4 h-4 text-primary flex-shrink-0 pointer-events-none absolute right-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+            <Select
+              value={ragflow.selectedSearchSourceId}
+              onChange={ragflow.setSelectedSearchSource}
+              options={ragflow.config?.searchSources || []}
+              icon={<Search size={18} />}
+            />
           )}
         </header>
         <div className={`flex-1 ${location.pathname === '/ai-chat' || location.pathname === '/ai-search' ? '' : 'p-8'}`}>

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../lib/api';
+import { Dialog } from '../components/Dialog';
+import { Checkbox } from '../components/Checkbox';
 
 interface ChatSession {
   id: string;
@@ -137,7 +139,7 @@ function HistoryPage() {
 
   const toggleSelectAll = () => {
     if (!result?.sessions) return;
-    
+
     if (selectedSessions.size === result.sessions.length) {
       setSelectedSessions(new Set());
     } else {
@@ -233,15 +235,11 @@ function HistoryPage() {
       {sessions.length > 0 && (
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedSessions.size === sessions.length && sessions.length > 0}
-                onChange={toggleSelectAll}
-                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
-              />
-              <span className="text-sm text-slate-600 dark:text-slate-400">{t('history.selectAll')}</span>
-            </label>
+            <Checkbox
+              checked={selectedSessions.size === sessions.length && sessions.length > 0}
+              onChange={toggleSelectAll}
+              label={t('history.selectAll')}
+            />
             {selectedSessions.size > 0 && (
               <span className="text-sm text-slate-500 dark:text-slate-400">
                 {t('history.selected', { count: selectedSessions.size })}
@@ -280,19 +278,17 @@ function HistoryPage() {
           {sessions.map((session) => (
             <div
               key={session.id}
-              className={`bg-white dark:bg-slate-800 border rounded-lg p-6 transition-all ${
-                selectedSessions.has(session.id)
+              className={`bg-white dark:bg-slate-800 border rounded-lg p-6 transition-all ${selectedSessions.has(session.id)
                   ? 'border-primary bg-blue-50 dark:bg-blue-900/20'
                   : 'border-slate-200 dark:border-slate-700 hover:shadow-lg'
-              }`}
+                }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4 flex-1">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedSessions.has(session.id)}
                     onChange={() => toggleSessionSelection(session.id)}
-                    className="mt-1 w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    className="mt-1"
                   />
                   <div className="flex-1">
                     <div className="font-semibold mb-2 text-slate-800 dark:text-slate-100">{session.title}</div>
@@ -324,59 +320,57 @@ function HistoryPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">{t('history.confirmDelete')}</h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">
-              {t('history.confirmDeleteMessage', { count: selectedSessions.size })}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="btn btn-secondary"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteMutation.isPending}
-                className="btn bg-red-500 text-white hover:bg-red-600"
-              >
-                {bulkDeleteMutation.isPending ? t('history.deleting') : t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={t('history.confirmDelete')}
+        footer={
+          <>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="btn btn-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+              className="btn bg-red-500 text-white hover:bg-red-600"
+            >
+              {bulkDeleteMutation.isPending ? t('history.deleting') : t('common.delete')}
+            </button>
+          </>
+        }
+      >
+        <p>{t('history.confirmDeleteMessage', { count: selectedSessions.size })}</p>
+      </Dialog>
 
-      {/* Delete All Confirmation Modal */}
-      {deleteAllConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-red-600 dark:text-red-400">⚠️ {t('history.deleteAllTitle')}</h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">
-              {t('history.deleteAllMessage')}
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setDeleteAllConfirm(false)}
-                className="btn btn-secondary"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleDeleteAll}
-                disabled={deleteAllMutation.isPending}
-                className="btn bg-red-500 text-white hover:bg-red-600"
-              >
-                {deleteAllMutation.isPending ? t('history.deleting') : t('history.deleteAll')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete All Confirmation Dialog */}
+      <Dialog
+        open={deleteAllConfirm}
+        onClose={() => setDeleteAllConfirm(false)}
+        title={`⚠️ ${t('history.deleteAllTitle')}`}
+        footer={
+          <>
+            <button
+              onClick={() => setDeleteAllConfirm(false)}
+              className="btn btn-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleDeleteAll}
+              disabled={deleteAllMutation.isPending}
+              className="btn bg-red-500 text-white hover:bg-red-600"
+            >
+              {deleteAllMutation.isPending ? t('history.deleting') : t('history.deleteAll')}
+            </button>
+          </>
+        }
+      >
+        <p>{t('history.deleteAllMessage')}</p>
+      </Dialog>
     </div>
   );
 }
