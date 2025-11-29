@@ -14,7 +14,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Users
+  Users,
+  Server
 } from 'lucide-react';
 
 function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
@@ -62,6 +63,8 @@ function Layout() {
         return t('pages.aiSearch.title');
       case '/history':
         return t('pages.history.title');
+      case '/system-tools':
+        return 'System Monitoring Tools';
       default:
         return t('common.appName');
     }
@@ -115,6 +118,12 @@ function Layout() {
             <NavLink to="/user-management" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="User Management">
               <Users size={20} />
               {!isCollapsed && <span>User Management</span>}
+            </NavLink>
+          )}
+          {user?.role === 'admin' && (
+            <NavLink to="/system-tools" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="System Tools">
+              <Server size={20} />
+              {!isCollapsed && <span>System Tools</span>}
             </NavLink>
           )}
         </nav>

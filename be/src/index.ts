@@ -1,6 +1,8 @@
 import express from 'express';
 import https from 'https';
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -12,11 +14,16 @@ import { log } from './services/logger.service.js';
 import { shutdownLangfuse } from './services/langfuse.service.js';
 import { checkConnection, closePool, getAdapter } from './db/index.js';
 import { userService } from './services/user.service.js';
+import { systemToolsService } from './services/system-tools.service.js';
 import authRoutes from './routes/auth.routes.js';
 import ragflowRoutes from './routes/ragflow.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import userRoutes from './routes/user.routes.js';
+import systemToolsRoutes from './routes/system-tools.routes.js';
 import { runMigrations } from './db/migrations/runner.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -58,6 +65,9 @@ app.use(cors({
 
 // Compression middleware
 app.use(compression());
+
+// Serve static files
+app.use('/static', express.static(path.join(__dirname, '../public')));
 
 // Session configuration
 app.use(session({
@@ -108,6 +118,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/ragflow', ragflowRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/system-tools', systemToolsRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
