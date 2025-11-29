@@ -1,3 +1,20 @@
+/**
+ * @fileoverview Main application entry point for the Knowledge Base backend server.
+ * 
+ * This file initializes and configures the Express.js server with:
+ * - CORS configuration for frontend communication
+ * - Session management (Redis or in-memory)
+ * - Security middleware (Helmet, compression)
+ * - API routes for authentication, RAGFlow, admin, users, and MinIO storage
+ * - Database connection and migration handling
+ * - Graceful shutdown handling
+ * 
+ * @module index
+ * @requires express
+ * @requires express-session
+ * @requires connect-redis
+ */
+
 import express from 'express';
 import https from 'https';
 import http from 'http';
@@ -25,20 +42,40 @@ import minioBucketRoutes from './routes/minio-bucket.routes.js';
 import minioStorageRoutes from './routes/minio-storage.routes.js';
 import { runMigrations } from './db/migrations/runner.js';
 
+/**
+ * ESM-compatible __filename and __dirname resolution.
+ * Required because ES modules don't have these globals like CommonJS.
+ */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** Express application instance */
 const app = express();
 
-// Session store setup based on configuration
+// ============================================================================
+// SESSION STORE CONFIGURATION
+// ============================================================================
+
+/**
+ * Session store instance - either RedisStore for production or undefined for MemoryStore.
+ * RedisStore provides persistent session storage across server restarts and load-balanced instances.
+ * MemoryStore is used for development but sessions are lost on restart.
+ */
 let sessionStore: RedisStore | undefined;
+
+/**
+ * Redis client instance for session storage.
+ * Only initialized when SESSION_STORE=redis in configuration.
+ */
 let redisClient: ReturnType<typeof createClient> | null = null;
 
+// Initialize Redis client if configured for Redis session storage
 if (config.sessionStore.type === 'redis') {
   redisClient = createClient({
     url: config.redis.url,
   });
 
+  // Redis event handlers for connection lifecycle logging
   redisClient.on('error', (err) => {
     log.error('Redis client error', { error: err.message });
   });
@@ -58,7 +95,19 @@ if (config.sessionStore.type === 'redis') {
   log.info('Session store: MemoryStore (in-memory sessions)');
 }
 
-// CORS configuration - must be before other middleware
+// ============================================================================
+// MIDDLEWARE CONFIGURATION
+// ============================================================================
+
+/**
+ * CORS (Cross-Origin Resource Sharing) configuration.
+ * Must be applied before other middleware to properly handle preflight requests.
+ * 
+ * - origin: Allows requests from the configured frontend URL only
+ * - credentials: Enables cookies/session sharing across origins
+ * - methods: Allowed HTTP methods for cross-origin requests
+ * - allowedHeaders: Headers that can be sent in cross-origin requests
+ */
 app.use(cors({
   origin: config.frontendUrl,
   credentials: true,
@@ -66,13 +115,34 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
 }));
 
-// Compression middleware
+/**
+ * Response compression middleware.
+ * Compresses HTTP responses using gzip/deflate to reduce bandwidth usage.
+ */
 app.use(compression());
 
-// Serve static files
+/**
+ * Static file serving for public assets.
+ * Files in the 'public' directory are served at the '/static' URL path.
+ * Used for icons, images, and other static resources.
+ */
 app.use('/static', express.static(path.join(__dirname, '../public')));
 
-// Session configuration
+/**
+ * Session middleware configuration.
+ * Manages user sessions with secure cookie settings.
+ * 
+ * Configuration details:
+ * - store: Redis store for production, MemoryStore for development
+ * - secret: Used to sign session ID cookie (must be secure in production)
+ * - resave: Don't save session if not modified
+ * - saveUninitialized: Don't create session until something is stored
+ * - cookie.secure: Only send cookie over HTTPS in production
+ * - cookie.httpOnly: Prevent JavaScript access to cookie (XSS protection)
+ * - cookie.maxAge: Session expiration time (default: 7 days)
+ * - cookie.domain: Enables cross-subdomain session sharing
+ * - cookie.sameSite: CSRF protection - 'lax' allows top-level navigation
+ */
 app.use(session({
   store: sessionStore, // undefined = MemoryStore
   secret: config.session.secret,
@@ -88,7 +158,19 @@ app.use(session({
   },
 }));
 
-// Security middleware for other routes
+/**
+ * Helmet security middleware.
+ * Sets various HTTP headers to help protect against common web vulnerabilities.
+ * 
+ * Content Security Policy (CSP) directives:
+ * - Configured to allow RAGFlow iframe embedding
+ * - Allows inline scripts/styles for compatibility with various components
+ * - Permits cross-origin resources for external APIs and assets
+ * 
+ * Cross-Origin settings:
+ * - crossOriginEmbedderPolicy: Disabled to allow embedding external resources
+ * - crossOriginResourcePolicy: Set to 'cross-origin' for shared resources
+ */
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -106,17 +188,41 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-// Body parsing
+/**
+ * Request body parsing middleware.
+ * - express.json(): Parses JSON request bodies
+ * - express.urlencoded(): Parses URL-encoded form data (with nested object support)
+ */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
+// ============================================================================
+// ROUTE DEFINITIONS
+// ============================================================================
+
+/**
+ * Health check endpoint for load balancers and monitoring systems.
+ * Returns a simple JSON response with server status and timestamp.
+ * Used by Docker, Kubernetes, and other orchestration tools.
+ */
 app.get('/health', (_req, res) => {
   log.debug('Health check requested');
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes
+/**
+ * API Route Registration.
+ * All routes are prefixed with '/api/' for clear API namespace separation.
+ * 
+ * Route handlers:
+ * - /api/auth: Authentication (Azure AD OAuth, session management, logout)
+ * - /api/ragflow: RAGFlow iframe configuration for AI Chat/Search
+ * - /api/admin: Administrative operations (requires admin API key)
+ * - /api/users: User management (RBAC, role updates)
+ * - /api/system-tools: System monitoring tools configuration
+ * - /api/minio/buckets: MinIO bucket CRUD operations
+ * - /api/minio/storage: File upload/download/delete operations
+ */
 app.use('/api/auth', authRoutes);
 app.use('/api/ragflow', ragflowRoutes);
 app.use('/api/admin', adminRoutes);
@@ -125,22 +231,50 @@ app.use('/api/system-tools', systemToolsRoutes);
 app.use('/api/minio/buckets', minioBucketRoutes);
 app.use('/api/minio/storage', minioStorageRoutes);
 
-// Error handling middleware
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+/**
+ * Global error handling middleware.
+ * Catches unhandled errors from route handlers and middleware.
+ * 
+ * - Logs error details for debugging (message and stack trace)
+ * - Returns a generic 500 error to clients (hides implementation details)
+ * - Must be defined after all other middleware and routes
+ */
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   log.error('Unhandled error', { error: err.message, stack: err.stack });
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server (HTTP or HTTPS based on config)
+// ============================================================================
+// SERVER STARTUP
+// ============================================================================
+
+/**
+ * Initializes and starts the HTTP/HTTPS server.
+ * 
+ * Startup sequence:
+ * 1. Connect to Redis for session storage (if configured)
+ * 2. Create HTTP or HTTPS server based on configuration
+ * 3. Start listening on configured port
+ * 4. Verify database connection
+ * 5. Run pending database migrations
+ * 6. Initialize root user if database is empty
+ * 
+ * @returns Promise resolving to the HTTP/HTTPS server instance
+ */
 const startServer = async (): Promise<http.Server | https.Server> => {
-  // Connect to Redis if configured
+  // Connect to Redis for session storage (production recommended)
   if (config.sessionStore.type === 'redis' && redisClient) {
     try {
       await redisClient.connect();
+      // Configure Redis session store with key prefix and TTL
       sessionStore = new RedisStore({
         client: redisClient,
-        prefix: 'kb:sess:',
-        ttl: config.session.ttlSeconds,
+        prefix: 'kb:sess:',  // Key prefix for session identification
+        ttl: config.session.ttlSeconds,  // Session time-to-live
       });
       log.info('Session store: Redis', { url: config.redis.url.replace(/:[^:@]*@/, ':***@') });
     } catch (err) {
@@ -154,6 +288,8 @@ const startServer = async (): Promise<http.Server | https.Server> => {
   let server: http.Server | https.Server;
   const protocol = config.https.enabled ? 'https' : 'http';
 
+  // Create HTTPS or HTTP server based on configuration
+  // HTTPS requires SSL certificates (key.pem, cert.pem) in the certs directory
   if (config.https.enabled) {
     const credentials = config.https.getCredentials();
     if (credentials) {
@@ -167,6 +303,7 @@ const startServer = async (): Promise<http.Server | https.Server> => {
     server = http.createServer(app);
   }
 
+  // Start listening and perform post-startup initialization
   server.listen(config.port, async () => {
     log.info(`Backend server started`, {
       url: `${protocol}://${config.devDomain}:${config.port}`,
@@ -175,12 +312,12 @@ const startServer = async (): Promise<http.Server | https.Server> => {
       sessionTTL: `${config.session.ttlSeconds / 86400} days`,
     });
 
-    // Check database connection
+    // Verify database connectivity
     const dbConnected = await checkConnection();
     if (dbConnected) {
       log.info('Database connected successfully');
 
-      // Run migrations
+      // Execute pending database migrations
       try {
         const db = await getAdapter();
         await runMigrations(db);
@@ -189,7 +326,7 @@ const startServer = async (): Promise<http.Server | https.Server> => {
         process.exit(1);
       }
 
-      // Initialize root user
+      // Create default admin user if no users exist
       await userService.initializeRootUser();
     } else {
       log.warn('Database connection failed - run npm run db:migrate first');
@@ -199,32 +336,58 @@ const startServer = async (): Promise<http.Server | https.Server> => {
   return server;
 };
 
-// Only start server if this file is run directly or not in test mode
-// The import.meta.url check can be flaky on Windows with tsx
+// ============================================================================
+// APPLICATION BOOTSTRAP
+// ============================================================================
+
+/**
+ * Conditional server startup.
+ * Only starts the server when:
+ * - Running as the main entry point (not imported as a module)
+ * - Not in test mode (NODE_ENV !== 'test' and no VITEST env)
+ * 
+ * This allows the app to be imported for testing without starting the server.
+ */
 const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITEST;
 if (!isTest) {
   startServer().then((server) => {
-    // Graceful shutdown
+    /**
+     * Graceful shutdown handler.
+     * Properly closes all connections and resources before exiting:
+     * 1. Stop accepting new HTTP connections
+     * 2. Close Redis client connection
+     * 3. Close database connection pool
+     * 4. Flush Langfuse traces and shutdown client
+     * 5. Exit process with success code
+     * 
+     * Triggered by SIGTERM (Docker/K8s stop) or SIGINT (Ctrl+C)
+     */
     const shutdown = async () => {
       log.info('Shutting down server...');
 
+      // Stop accepting new connections
       server.close(() => {
         log.info('HTTP server closed');
       });
 
+      // Disconnect Redis session store
       if (redisClient && redisClient.isOpen) {
         await redisClient.quit();
         log.info('Redis client disconnected');
       }
 
+      // Close database connections
       await closePool();
+
+      // Flush and close Langfuse client
       await shutdownLangfuse();
 
       process.exit(0);
     };
 
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
+    // Register signal handlers for graceful shutdown
+    process.on('SIGTERM', shutdown);  // Docker/Kubernetes stop signal
+    process.on('SIGINT', shutdown);   // Ctrl+C interrupt signal
   }).catch((err) => {
     log.error('Failed to start server', { error: err instanceof Error ? err.message : String(err) });
     process.exit(1);

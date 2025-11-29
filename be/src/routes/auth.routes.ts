@@ -1,3 +1,21 @@
+/**
+ * @fileoverview Authentication routes for Azure Entra ID OAuth2 and development mode.
+ * 
+ * This module handles:
+ * - OAuth2 login flow with Azure AD (PKCE)
+ * - OAuth callback processing and token exchange
+ * - Session management and logout
+ * - Development mode authentication bypass
+ * - Root user authentication for local deployments
+ * 
+ * Security features:
+ * - CSRF protection via OAuth state parameter
+ * - Session regeneration on login/logout
+ * - In-memory state store with TTL for OAuth states
+ * 
+ * @module routes/auth
+ */
+
 import { Router, Request, Response } from 'express';
 import { getCurrentUser } from '../middleware/auth.middleware.js';
 import { config } from '../config/index.js';
@@ -12,18 +30,34 @@ import { userService } from '../services/user.service.js';
 
 const router = Router();
 
-// In-memory state store for OAuth (with TTL)
-// This is the PRIMARY store for OAuth state since session cookies may not persist
-// across different ports (frontend proxy vs direct backend access)
+// ============================================================================
+// OAuth State Management
+// ============================================================================
+
+/**
+ * OAuth state data stored in memory for CSRF protection.
+ * This is the PRIMARY store since session cookies may not persist
+ * across different ports (frontend proxy vs direct backend access).
+ */
 interface OAuthStateData {
+  /** Timestamp when state was created (for TTL calculation) */
   timestamp: number;
+  /** Optional redirect URL after successful login */
   redirectUrl?: string;
+  /** Session ID associated with this state */
   sessionId?: string;
 }
-const oauthStateStore = new Map<string, OAuthStateData>();
-const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes (increased from 5)
 
-// Cleanup expired states periodically
+/** In-memory store for OAuth states with TTL cleanup */
+const oauthStateStore = new Map<string, OAuthStateData>();
+
+/** Time-to-live for OAuth states (10 minutes) */
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Periodic cleanup of expired OAuth states.
+ * Runs every minute to prevent memory leaks.
+ */
 setInterval(() => {
   const now = Date.now();
   let cleanedCount = 0;
@@ -36,9 +70,16 @@ setInterval(() => {
   if (cleanedCount > 0) {
     log.debug('Cleaned up expired OAuth states', { count: cleanedCount });
   }
-}, 60 * 1000); // Every minute
+}, 60 * 1000);
 
-// Dev user for testing UI - ONLY available in development
+// ============================================================================
+// Development Mode Configuration
+// ============================================================================
+
+/**
+ * Development-only mock user for testing UI without Azure AD.
+ * Only available when NODE_ENV === 'development'.
+ */
 const DEV_USER = config.nodeEnv === 'development' ? {
   id: 'dev-user-001',
   email: 'john.doe@contoso.com',
@@ -47,10 +88,19 @@ const DEV_USER = config.nodeEnv === 'development' ? {
   avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=3b82f6&color=fff&size=128',
 } : null;
 
+// ============================================================================
+// Route Handlers
+// ============================================================================
+
 /**
  * GET /api/auth/me
- * Get current authenticated user
- * Returns user info that can be stored in shared storage for cross-subdomain access
+ * Get current authenticated user.
+ * 
+ * Returns user info that can be stored in shared storage for cross-subdomain access.
+ * Includes _sharedStorage metadata for frontend synchronization.
+ * 
+ * @returns {Object} User object with shared storage metadata
+ * @returns {401} If no user is authenticated
  */
 router.get('/me', (req: Request, res: Response) => {
   const user = getCurrentUser(req);
@@ -85,8 +135,14 @@ router.get('/me', (req: Request, res: Response) => {
 
 /**
  * POST /api/auth/dev-login
- * Development only: Login as dev user without Azure AD
- * This creates an actual session, unlike the removed auto-dev-user fallback
+ * Development only: Login as dev user without Azure AD.
+ * 
+ * This creates an actual session, unlike the removed auto-dev-user fallback.
+ * Regenerates session to prevent session fixation attacks.
+ * 
+ * @body {string} [redirect] - Optional URL to redirect after login
+ * @returns {Object} Success status, user object, and redirect URL
+ * @returns {403} If not in development mode
  */
 router.post('/dev-login', (req: Request, res: Response) => {
   // Only allow in development mode
@@ -134,7 +190,15 @@ router.post('/dev-login', (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/login
- * Initiate Azure Entra ID login
+ * Initiate Azure Entra ID OAuth2 login flow.
+ * 
+ * Flow:
+ * 1. Regenerate session for clean state
+ * 2. Generate CSRF state token
+ * 3. Store state in memory (primary) and session (fallback)
+ * 4. Redirect to Azure AD authorization endpoint
+ * 
+ * @query {string} [redirect] - URL to redirect after successful login
  */
 router.get('/login', (req: Request, res: Response) => {
   // Generate state for CSRF protection
@@ -186,7 +250,20 @@ router.get('/login', (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/callback
- * Handle OAuth callback from Azure Entra ID
+ * Handle OAuth callback from Azure Entra ID.
+ * 
+ * Processing steps:
+ * 1. Validate OAuth state (CSRF protection)
+ * 2. Exchange authorization code for tokens
+ * 3. Fetch user profile from Microsoft Graph API
+ * 4. Find or create user in database
+ * 5. Store user in session with role/permissions
+ * 6. Redirect to frontend
+ * 
+ * @query {string} code - Authorization code from Azure AD
+ * @query {string} state - State parameter for CSRF validation
+ * @query {string} [error] - Error code from Azure AD
+ * @query {string} [error_description] - Error description from Azure AD
  */
 router.get('/callback', async (req: Request, res: Response) => {
   const { code, state, error, error_description } = req.query;
@@ -292,7 +369,15 @@ router.get('/callback', async (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/logout
- * Logout the current user (local session only, not Azure AD)
+ * Logout the current user (local session only, not Azure AD).
+ * 
+ * This performs a local logout only, allowing users to
+ * login with a different Azure account without logging out of Azure.
+ * 
+ * Steps:
+ * 1. Destroy server session
+ * 2. Clear session cookie
+ * 3. Redirect to login page
  */
 router.get('/logout', (req: Request, res: Response) => {
   const user = getCurrentUser(req);
@@ -323,7 +408,12 @@ router.get('/logout', (req: Request, res: Response) => {
 
 /**
  * POST /api/auth/logout
- * Logout via POST (for programmatic logout)
+ * Logout via POST (for programmatic logout from frontend).
+ * 
+ * Returns JSON response instead of redirect.
+ * 
+ * @returns {Object} Success message and redirect URL
+ * @returns {500} If session destruction fails
  */
 router.post('/logout', (req: Request, res: Response) => {
   const user = getCurrentUser(req);
@@ -355,7 +445,11 @@ router.post('/logout', (req: Request, res: Response) => {
 
 /**
  * GET /api/auth/config
- * Get public authentication configuration
+ * Get public authentication configuration.
+ * 
+ * Returns configuration flags for frontend authentication UI.
+ * 
+ * @returns {Object} Auth config with enableRootLogin flag
  */
 router.get('/config', (_req: Request, res: Response) => {
   res.json({
@@ -365,7 +459,16 @@ router.get('/config', (_req: Request, res: Response) => {
 
 /**
  * POST /api/auth/login/root
- * Login with root credentials
+ * Login with root credentials (local deployment only).
+ * 
+ * Authenticates using KB_ROOT_USER and KB_ROOT_PASSWORD environment variables.
+ * Only available when ENABLE_ROOT_LOGIN is true.
+ * 
+ * @body {string} username - Root username
+ * @body {string} password - Root password
+ * @returns {Object} Success status and user object
+ * @returns {403} If root login is disabled
+ * @returns {401} If credentials are invalid
  */
 router.post('/login/root', async (req: Request, res: Response) => {
   if (!config.enableRootLogin) {

@@ -1,29 +1,100 @@
+/**
+ * @fileoverview MinIO object storage service.
+ * 
+ * This module provides integration with MinIO for file storage operations.
+ * MinIO is an S3-compatible object storage system used for:
+ * - Document and file uploads
+ * - Organized storage with buckets and folders
+ * - Presigned URLs for secure file downloads
+ * 
+ * Features:
+ * - Bucket management (create, delete, list)
+ * - File operations (upload, download, delete)
+ * - Folder simulation (MinIO uses flat object keys)
+ * - Batch operations for efficiency
+ * - Presigned URL generation for secure sharing
+ * 
+ * @module services/minio
+ * @see https://min.io/docs/minio/linux/developers/javascript/minio-javascript.html
+ */
+
 import * as Minio from 'minio';
 import { Readable } from 'stream';
 import { log } from './logger.service.js';
 
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+/**
+ * MinIO connection configuration.
+ */
 interface MinioConfig {
+    /** MinIO server hostname or IP */
     endPoint: string;
+    /** MinIO server port (default: 9000) */
     port: number;
+    /** Use SSL/TLS for connections */
     useSSL: boolean;
+    /** MinIO access key (username) */
     accessKey: string;
+    /** MinIO secret key (password) */
     secretKey: string;
 }
 
+/**
+ * Represents a file or folder in MinIO storage.
+ */
 interface FileObject {
+    /** Object name (filename or folder name) */
     name: string;
+    /** Object size in bytes */
     size: number;
+    /** Last modification timestamp */
     lastModified: Date;
+    /** Object ETag for change detection */
     etag: string;
+    /** Whether this is a folder (virtual directory) */
     isFolder: boolean;
+    /** Full prefix path (for folders) */
     prefix?: string;
 }
 
+// ============================================================================
+// MINIO SERVICE CLASS
+// ============================================================================
+
+/**
+ * MinIO storage service class.
+ * Provides high-level methods for interacting with MinIO object storage.
+ * 
+ * The service is initialized as a singleton and automatically configured
+ * from environment variables on import.
+ * 
+ * @example
+ * import { minioService } from './services/minio.service.js';
+ * 
+ * // Create a bucket
+ * await minioService.createBucket('my-bucket');
+ * 
+ * // Upload a file
+ * await minioService.uploadFile('my-bucket', 'docs/file.pdf', buffer, size);
+ * 
+ * // Get download URL
+ * const url = await minioService.getDownloadUrl('my-bucket', 'docs/file.pdf');
+ */
 class MinioService {
+    /** MinIO client instance (null if not configured) */
     private client: Minio.Client | null = null;
+    /** Configuration loaded from environment */
     private config: MinioConfig;
 
+    /**
+     * Creates a new MinIO service instance.
+     * Configuration is loaded from environment variables.
+     */
     constructor() {
+        // Load configuration from environment variables
         this.config = {
             endPoint: process.env.MINIO_ENDPOINT || 'localhost',
             port: parseInt(process.env.MINIO_PORT || '9000'),
@@ -35,13 +106,19 @@ class MinioService {
         this.initialize();
     }
 
+    /**
+     * Initialize the MinIO client connection.
+     * If credentials are not configured, storage features will be disabled.
+     */
     private initialize(): void {
         try {
+            // Skip initialization if credentials are missing
             if (!this.config.accessKey || !this.config.secretKey) {
                 log.warn('MinIO credentials not configured. Storage features will be disabled.');
                 return;
             }
 
+            // Create MinIO client with configured settings
             this.client = new Minio.Client({
                 endPoint: this.config.endPoint,
                 port: this.config.port,
@@ -62,6 +139,11 @@ class MinioService {
         }
     }
 
+    /**
+     * Ensure the MinIO client is initialized before operations.
+     * @throws Error if client is not initialized
+     * @returns MinIO client instance
+     */
     private ensureClient(): Minio.Client {
         if (!this.client) {
             throw new Error('MinIO client not initialized. Check configuration.');
@@ -69,8 +151,14 @@ class MinioService {
         return this.client;
     }
 
-    // ==================== Bucket Operations ====================
+    // ========================================================================
+    // BUCKET OPERATIONS
+    // ========================================================================
 
+    /**
+     * List all buckets in the MinIO server.
+     * @returns Array of bucket information
+     */
     async listBuckets(): Promise<Minio.BucketItemFromList[]> {
         const client = this.ensureClient();
         try {
@@ -83,6 +171,11 @@ class MinioService {
         }
     }
 
+    /**
+     * Check if a bucket exists.
+     * @param bucketName - Name of the bucket to check
+     * @returns True if bucket exists, false otherwise
+     */
     async bucketExists(bucketName: string): Promise<boolean> {
         const client = this.ensureClient();
         try {
@@ -96,9 +189,16 @@ class MinioService {
         }
     }
 
+    /**
+     * Create a new bucket.
+     * @param bucketName - Name for the new bucket (must follow S3 naming rules)
+     * @param region - Optional region for the bucket (default: us-east-1)
+     * @throws Error if bucket already exists or creation fails
+     */
     async createBucket(bucketName: string, region?: string): Promise<void> {
         const client = this.ensureClient();
         try {
+            // Check if bucket already exists
             const exists = await client.bucketExists(bucketName);
             if (exists) {
                 throw new Error(`Bucket '${bucketName}' already exists`);
@@ -115,6 +215,11 @@ class MinioService {
         }
     }
 
+    /**
+     * Delete an empty bucket.
+     * @param bucketName - Name of the bucket to delete
+     * @throws Error if bucket is not empty or deletion fails
+     */
     async deleteBucket(bucketName: string): Promise<void> {
         const client = this.ensureClient();
         try {
@@ -129,8 +234,23 @@ class MinioService {
         }
     }
 
-    // ==================== Object Operations ====================
+    // ========================================================================
+    // OBJECT OPERATIONS
+    // ========================================================================
 
+    /**
+     * List objects in a bucket with optional prefix filtering.
+     * 
+     * This method simulates folder navigation by:
+     * - Grouping objects by path segments when not recursive
+     * - Returning folder entries for directories
+     * - Sorting folders before files alphabetically
+     * 
+     * @param bucketName - Name of the bucket to list
+     * @param prefix - Optional prefix to filter objects (e.g., 'docs/')
+     * @param recursive - If true, list all nested objects; if false, show folder structure
+     * @returns Array of file/folder objects, sorted with folders first
+     */
     async listObjects(
         bucketName: string,
         prefix: string = '',
@@ -138,19 +258,21 @@ class MinioService {
     ): Promise<FileObject[]> {
         const client = this.ensureClient();
         const objects: FileObject[] = [];
-        const folders = new Set<string>();
+        const folders = new Set<string>();  // Track folders to avoid duplicates
 
         try {
+            // Stream objects from MinIO
             const stream = client.listObjects(bucketName, prefix, recursive);
 
             for await (const obj of stream) {
                 if (obj.name) {
+                    // Check if this is a folder marker (ends with /)
                     if (obj.name.endsWith('/')) {
                         const folderName = obj.name.slice(prefix.length);
                         if (folderName && !folders.has(folderName)) {
                             folders.add(folderName);
                             objects.push({
-                                name: folderName.replace(/\/$/, ''),
+                                name: folderName.replace(/\/$/, ''),  // Remove trailing slash
                                 size: 0,
                                 lastModified: obj.lastModified || new Date(),
                                 etag: obj.etag || '',
@@ -159,11 +281,14 @@ class MinioService {
                             });
                         }
                     } else {
+                        // Regular file
                         const relativePath = obj.name.slice(prefix.length);
 
+                        // If not recursive, check if this file is in a subfolder
                         if (!recursive) {
                             const parts = relativePath.split('/');
                             if (parts.length > 1) {
+                                // This file is in a subfolder - add folder entry instead
                                 const folderName = parts[0];
                                 const folderPath = prefix + folderName + '/';
                                 if (!folders.has(folderPath)) {
@@ -177,10 +302,11 @@ class MinioService {
                                         prefix: folderPath,
                                     });
                                 }
-                                continue;
+                                continue;  // Skip the file, folder is shown instead
                             }
                         }
 
+                        // Add file entry
                         objects.push({
                             name: relativePath,
                             size: obj.size || 0,
@@ -192,6 +318,7 @@ class MinioService {
                 }
             }
 
+            // Sort: folders first, then alphabetically by name
             return objects.sort((a, b) => {
                 if (a.isFolder && !b.isFolder) return -1;
                 if (!a.isFolder && b.isFolder) return 1;
@@ -207,6 +334,16 @@ class MinioService {
         }
     }
 
+    /**
+     * Upload a file to MinIO.
+     * 
+     * @param bucketName - Target bucket name
+     * @param objectName - Object key (path/filename) in the bucket
+     * @param stream - File content as Buffer or Readable stream
+     * @param size - File size in bytes
+     * @param metadata - Optional metadata (e.g., Content-Type)
+     * @returns Object with etag and optional versionId
+     */
     async uploadFile(
         bucketName: string,
         objectName: string,
@@ -229,6 +366,11 @@ class MinioService {
         }
     }
 
+    /**
+     * Delete a single object from MinIO.
+     * @param bucketName - Bucket containing the object
+     * @param objectName - Object key to delete
+     */
     async deleteObject(bucketName: string, objectName: string): Promise<void> {
         const client = this.ensureClient();
         try {
@@ -244,6 +386,13 @@ class MinioService {
         }
     }
 
+    /**
+     * Delete multiple objects from MinIO in a single operation.
+     * More efficient than calling deleteObject multiple times.
+     * 
+     * @param bucketName - Bucket containing the objects
+     * @param objectNames - Array of object keys to delete
+     */
     async deleteObjects(bucketName: string, objectNames: string[]): Promise<void> {
         const client = this.ensureClient();
         try {
@@ -259,11 +408,23 @@ class MinioService {
         }
     }
 
+    /**
+     * Delete a folder and all its contents recursively.
+     * 
+     * Since MinIO uses flat object keys, this method:
+     * 1. Lists all objects with the folder prefix
+     * 2. Deletes all found objects in batch
+     * 
+     * @param bucketName - Bucket containing the folder
+     * @param folderPrefix - Folder path (e.g., 'docs/archive/')
+     */
     async deleteFolder(bucketName: string, folderPrefix: string): Promise<void> {
         const client = this.ensureClient();
         try {
+            // Ensure prefix ends with / for folder semantics
             const prefix = folderPrefix.endsWith('/') ? folderPrefix : folderPrefix + '/';
 
+            // Collect all objects in the folder
             const objects: string[] = [];
             const stream = client.listObjects(bucketName, prefix, true);
 
@@ -273,6 +434,7 @@ class MinioService {
                 }
             }
 
+            // Delete all objects in batch
             if (objects.length > 0) {
                 await client.removeObjects(bucketName, objects);
                 log.info('Folder deleted', { bucketName, folderPrefix, objectCount: objects.length });
@@ -287,10 +449,21 @@ class MinioService {
         }
     }
 
+    /**
+     * Create a folder (empty marker object) in MinIO.
+     * 
+     * MinIO doesn't have true folders, so we create an empty object
+     * with a trailing slash to simulate folder creation.
+     * 
+     * @param bucketName - Target bucket
+     * @param folderPath - Folder path to create
+     */
     async createFolder(bucketName: string, folderPath: string): Promise<void> {
         const client = this.ensureClient();
         try {
+            // Ensure folder path ends with /
             const folderName = folderPath.endsWith('/') ? folderPath : folderPath + '/';
+            // Create empty object as folder marker
             await client.putObject(bucketName, folderName, Buffer.from(''), 0);
             log.info('Folder created', { bucketName, folderPath: folderName });
         } catch (error) {
@@ -303,6 +476,17 @@ class MinioService {
         }
     }
 
+    /**
+     * Generate a presigned download URL for an object.
+     * 
+     * The URL allows temporary, secure access to the object
+     * without requiring authentication.
+     * 
+     * @param bucketName - Bucket containing the object
+     * @param objectName - Object key
+     * @param expirySeconds - URL validity period in seconds (default: 1 hour)
+     * @returns Presigned URL string
+     */
     async getDownloadUrl(
         bucketName: string,
         objectName: string,
@@ -322,6 +506,13 @@ class MinioService {
         }
     }
 
+    /**
+     * Get metadata and statistics for an object.
+     * 
+     * @param bucketName - Bucket containing the object
+     * @param objectName - Object key
+     * @returns Object statistics (size, etag, content-type, etc.)
+     */
     async getObjectStat(bucketName: string, objectName: string): Promise<Minio.BucketItemStat> {
         const client = this.ensureClient();
         try {
@@ -337,5 +528,12 @@ class MinioService {
     }
 }
 
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+/** Singleton MinIO service instance */
 export const minioService = new MinioService();
+
+/** Export FileObject type for use in other modules */
 export type { FileObject };
