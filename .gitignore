@@ -141,3 +141,6 @@ vite.config.ts.timestamp-*
 # SSL Certificates (generated for local development)
 certs/
 *.pem
+
+.data
+.db
