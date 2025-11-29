@@ -47,7 +47,7 @@ async function initializeAdapter(): Promise<DatabaseAdapter> {
 /**
  * Get the database adapter (lazy initialization)
  */
-async function getAdapter(): Promise<DatabaseAdapter> {
+export async function getAdapter(): Promise<DatabaseAdapter> {
   if (!adapter) {
     return await initializeAdapter();
   }

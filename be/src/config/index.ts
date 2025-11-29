@@ -54,6 +54,9 @@ export const config = {
   // Development domain configuration
   devDomain: process.env['DEV_DOMAIN'] ?? 'localhost',
 
+  // Feature Flags
+  enableRootLogin: process.env['ENABLE_ROOT_LOGIN'] === 'true',
+
   // Session Store Configuration
   sessionStore: {
     type: (process.env['SESSION_STORE'] ||
@@ -82,7 +85,6 @@ export const config = {
     // Full search iframe URL (direct URL, no proxy)
     aiSearchUrl: process.env['RAGFLOW_AI_SEARCH_URL'] ?? '',
 
-    // Dynamic sources configuration
     // Dynamic sources configuration
     chatSources: [
       {

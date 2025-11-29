@@ -10,10 +10,13 @@ import { RedisStore } from 'connect-redis';
 import { config } from './config/index.js';
 import { log } from './services/logger.service.js';
 import { shutdownLangfuse } from './services/langfuse.service.js';
-import { checkConnection, closePool } from './db/index.js';
+import { checkConnection, closePool, getAdapter } from './db/index.js';
+import { userService } from './services/user.service.js';
 import authRoutes from './routes/auth.routes.js';
 import ragflowRoutes from './routes/ragflow.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import userRoutes from './routes/user.routes.js';
+import { runMigrations } from './db/migrations/runner.js';
 
 const app = express();
 
@@ -49,6 +52,8 @@ if (config.sessionStore.type === 'redis') {
 app.use(cors({
   origin: config.frontendUrl,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
 }));
 
 // Compression middleware
@@ -102,6 +107,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/ragflow', ragflowRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -157,6 +163,18 @@ const startServer = async (): Promise<http.Server | https.Server> => {
     const dbConnected = await checkConnection();
     if (dbConnected) {
       log.info('Database connected successfully');
+
+      // Run migrations
+      try {
+        const db = await getAdapter();
+        await runMigrations(db);
+      } catch (error) {
+        log.error('Failed to run migrations', { error });
+        process.exit(1);
+      }
+
+      // Initialize root user
+      await userService.initializeRootUser();
     } else {
       log.warn('Database connection failed - run npm run db:migrate first');
     }
@@ -169,25 +187,32 @@ const startServer = async (): Promise<http.Server | https.Server> => {
 // The import.meta.url check can be flaky on Windows with tsx
 const isTest = process.env.NODE_ENV === 'test' || !!process.env.VITEST;
 if (!isTest) {
-  startServer();
+  startServer().then((server) => {
+    // Graceful shutdown
+    const shutdown = async () => {
+      log.info('Shutting down server...');
+
+      server.close(() => {
+        log.info('HTTP server closed');
+      });
+
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.quit();
+        log.info('Redis client disconnected');
+      }
+
+      await closePool();
+      await shutdownLangfuse();
+
+      process.exit(0);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+  }).catch((err) => {
+    log.error('Failed to start server', { error: err instanceof Error ? err.message : String(err) });
+    process.exit(1);
+  });
 }
 
-// Graceful shutdown
-const gracefulShutdown = async (server: http.Server | https.Server, signal: string) => {
-  log.info(`${signal} received, shutting down gracefully...`);
-  await shutdownLangfuse();
-  await closePool();
-
-  // Close Redis connection
-  if (redisClient && redisClient.isOpen) {
-    await redisClient.quit();
-    log.info('Redis connection closed');
-  }
-
-  server.close(() => {
-    log.info('Server closed');
-    process.exit(0);
-  });
-};
-
-export { app, startServer, gracefulShutdown };
+export { app, startServer };

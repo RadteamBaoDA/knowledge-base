@@ -55,6 +55,8 @@ npm run dev
 - **Langfuse Integration**: Full observability - log all user prompts and AI responses
 - **PostgreSQL Chat History**: Persistent storage with full-text search via GIN indexes
 - **Azure Entra ID SSO**: Microsoft OAuth2 authentication with user avatar support
+- **Role-Based Access Control (RBAC)**: Granular permissions for Admin, Manager, and User roles
+- **Root Login**: Built-in root user for initial setup and emergency access
 - **Collapsible Sidebar**: Responsive UI with user info display
 
 ## Development Commands
@@ -85,7 +87,12 @@ npm run lint             # Lint all workspaces
 - `DELETE /api/chat/sessions` - Bulk delete sessions
 
 ### RAGFlow Config
-- `GET /api/ragflow/config` - Get iframe URLs for AI Chat/Search
+### RAGFlow Config
+- `GET /api/ragflow/config` - Get iframe URLs for AI Chat/Search (Requires `view_chat` permission)
+
+### User Management (Admin Only)
+- `GET /api/users` - List all users
+- `PUT /api/users/:id/role` - Update user role
 
 ## Environment Variables
 
@@ -121,7 +128,13 @@ AZURE_AD_REDIRECT_URI=http://localhost:3001/api/auth/callback
 SESSION_SECRET=your-session-secret
 
 # Frontend URL (for CORS)
+# Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:5173
+
+# Root Login (Optional)
+ENABLE_ROOT_LOGIN=true
+KB_ROOT_USER=admin@localhost
+KB_ROOT_PASSWORD=admin
 ```
 
 ## Azure App Registration Setup

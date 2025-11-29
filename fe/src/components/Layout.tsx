@@ -13,7 +13,8 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Users
 } from 'lucide-react';
 
 function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
@@ -108,6 +109,12 @@ function Layout() {
             <NavLink to="/history" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('nav.history')}>
               <History size={20} />
               {!isCollapsed && <span>{t('nav.history')}</span>}
+            </NavLink>
+          )}
+          {user?.role === 'admin' && (
+            <NavLink to="/user-management" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="User Management">
+              <Users size={20} />
+              {!isCollapsed && <span>User Management</span>}
             </NavLink>
           )}
         </nav>

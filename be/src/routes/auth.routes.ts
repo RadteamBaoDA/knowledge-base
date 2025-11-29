@@ -8,6 +8,7 @@ import {
   getUserProfile,
   generateState,
 } from '../services/auth.service.js';
+import { userService } from '../services/user.service.js';
 
 const router = Router();
 
@@ -257,7 +258,15 @@ router.get('/callback', async (req: Request, res: Response) => {
     });
 
     // Store user in session
-    req.session.user = user;
+    // Auto-save user to database
+    const dbUser = await userService.findOrCreateUser(user);
+
+    // Merge Azure AD profile with DB user data (role, permissions)
+    req.session.user = {
+      ...user,
+      role: dbUser.role,
+      permissions: dbUser.permissions,
+    };
     req.session.accessToken = tokens.access_token;
 
     // Clear OAuth state from session
@@ -342,6 +351,62 @@ router.post('/logout', (req: Request, res: Response) => {
       redirectUrl: `${config.frontendUrl}/login`,
     });
   });
+});
+
+/**
+ * GET /api/auth/config
+ * Get public authentication configuration
+ */
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({
+    enableRootLogin: config.enableRootLogin,
+  });
+});
+
+/**
+ * POST /api/auth/login/root
+ * Login with root credentials
+ */
+router.post('/login/root', async (req: Request, res: Response) => {
+  if (!config.enableRootLogin) {
+    res.status(403).json({ error: 'Root login is disabled' });
+    return;
+  }
+
+  const { username, password } = req.body;
+  const rootUser = process.env['KB_ROOT_USER'] || 'admin@localhost';
+  const rootPass = process.env['KB_ROOT_PASSWORD'] || 'admin';
+
+  if (username !== rootUser || password !== rootPass) {
+    res.status(401).json({ error: 'Invalid credentials' });
+    return;
+  }
+
+  try {
+    // Find or create root user in DB to ensure consistency
+    const user = await userService.findOrCreateUser({
+      id: 'root-user',
+      email: rootUser,
+      name: 'System Administrator',
+      displayName: 'System Administrator',
+    });
+
+    // Create session
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      name: 'System Administrator',
+      displayName: user.display_name,
+      role: 'admin',
+      permissions: ['*'], // Root has all permissions
+    };
+
+    log.info('Root user logged in', { email: rootUser });
+    res.json({ success: true, user: req.session.user });
+  } catch (error) {
+    log.error('Root login failed', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
 export default router;

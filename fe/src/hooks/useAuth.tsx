@@ -9,6 +9,11 @@ export interface User {
   name: string;
   displayName: string;
   avatar?: string;
+  role: 'admin' | 'manager' | 'user';
+  permissions: string[];
+  department?: string;
+  job_title?: string;
+  mobile_phone?: string;
 }
 
 interface AuthContextType {
@@ -37,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setError(null);
       console.log('[Auth] Checking session...');
-      
+
       const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         credentials: 'include',
       });
