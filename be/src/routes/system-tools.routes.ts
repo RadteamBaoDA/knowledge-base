@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { systemToolsService } from '../services/system-tools.service.js';
 import { log } from '../services/logger.service.js';
+import { requireRole } from '../middleware/auth.middleware.js';
 
 const router = Router();
+
+// Require admin role for all system tools routes
+router.use(requireRole('admin'));
 
 /**
  * GET /api/system-tools
@@ -32,16 +36,6 @@ router.get('/', (req: Request, res: Response) => {
  */
 router.post('/reload', (req: Request, res: Response) => {
     try {
-        // Check if user is admin
-        if (req.session.user?.role !== 'admin') {
-            log.warn('Non-admin user attempted to reload system tools', {
-                user: req.session.user?.email,
-                role: req.session.user?.role,
-            });
-            res.status(403).json({ error: 'Forbidden: Admin access required' });
-            return;
-        }
-
         log.info('Reloading system tools configuration', {
             user: req.session.user?.email,
         });

@@ -53,6 +53,15 @@
             "url": "https://rabbitmq.example.com",
             "order": 6,
             "enabled": true
+        },
+        {
+            "id": "internal-monitor",
+            "name": "Internal Monitor",
+            "description": "Local System Status",
+            "icon": "/static/icons/default-tool.svg",
+            "url": "http://localhost:3000/health",
+            "order": 7,
+            "enabled": true
         }
     ]
 }

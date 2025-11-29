@@ -4,6 +4,7 @@ import { AuthProvider } from './hooks/useAuth';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { RagflowProvider } from './contexts/RagflowContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import SettingsDialog from './components/SettingsDialog';
 import Layout from './components/Layout';
 import { config } from './config';
@@ -16,6 +17,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LogoutPage = lazy(() => import('./pages/LogoutPage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 const SystemToolsPage = lazy(() => import('./pages/SystemToolsPage'));
+const ErrorPage = lazy(() => import('./pages/ErrorPage'));
 
 // Import i18n configuration
 import './i18n';
@@ -62,8 +64,22 @@ function App() {
                   <Route path="/history" element={<HistoryPage />} />
                 )}
 
-                <Route path="/user-management" element={<UserManagementPage />} />
-                <Route path="/system-tools" element={<SystemToolsPage />} />
+                <Route path="/user-management" element={
+                  <AdminRoute>
+                    <UserManagementPage />
+                  </AdminRoute>
+                } />
+                <Route path="/system-tools" element={
+                  <AdminRoute>
+                    <SystemToolsPage />
+                  </AdminRoute>
+                } />
+
+                {/* Error routes */}
+                <Route path="/403" element={<ErrorPage code={403} />} />
+                <Route path="/404" element={<ErrorPage code={404} />} />
+                <Route path="/500" element={<ErrorPage code={500} />} />
+                <Route path="*" element={<Navigate to="/404" replace />} />
               </Route>
             </Routes>
           </Suspense>

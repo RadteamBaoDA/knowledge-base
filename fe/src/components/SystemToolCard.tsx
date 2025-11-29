@@ -10,6 +10,14 @@ const SystemToolCard = ({ tool }: SystemToolCardProps) => {
         window.open(tool.url, '_blank', 'noopener,noreferrer');
     };
 
+    const getIconUrl = (iconPath: string) => {
+        if (iconPath.startsWith('/static')) {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+            return `${API_BASE_URL}${iconPath}`;
+        }
+        return iconPath;
+    };
+
     return (
         <button
             onClick={handleClick}
@@ -19,13 +27,19 @@ const SystemToolCard = ({ tool }: SystemToolCardProps) => {
             {/* Icon */}
             <div className="w-16 h-16 mb-4 flex items-center justify-center">
                 <img
-                    src={tool.icon}
+                    src={getIconUrl(tool.icon)}
                     alt={`${tool.name} icon`}
                     className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-110"
                     onError={(e) => {
-                        // Fallback to a default icon if image fails to load
+                        // Fallback to backend-hosted default icon if image fails to load
                         const target = e.target as HTMLImageElement;
-                        target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Crect x="3" y="3" width="18" height="18" rx="2" ry="2"%3E%3C/rect%3E%3Cpath d="M9 3v18"%3E%3C/path%3E%3Cpath d="M15 3v18"%3E%3C/path%3E%3C/svg%3E';
+                        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+                        const fallbackUrl = `${API_BASE_URL}/static/icons/default-tool.svg`;
+
+                        // Prevent infinite loop if fallback also fails
+                        if (target.src !== fallbackUrl) {
+                            target.src = fallbackUrl;
+                        }
                     }}
                 />
             </div>

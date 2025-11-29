@@ -1,6 +1,8 @@
 import express from 'express';
 import https from 'https';
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -19,6 +21,9 @@ import adminRoutes from './routes/admin.routes.js';
 import userRoutes from './routes/user.routes.js';
 import systemToolsRoutes from './routes/system-tools.routes.js';
 import { runMigrations } from './db/migrations/runner.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -60,6 +65,9 @@ app.use(cors({
 
 // Compression middleware
 app.use(compression());
+
+// Serve static files
+app.use('/static', express.static(path.join(__dirname, '../public')));
 
 // Session configuration
 app.use(session({
