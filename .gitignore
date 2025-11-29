@@ -144,3 +144,6 @@ certs/
 
 .data
 .db
+
+# Backend database files
+be/.data/knowledge-base.db
