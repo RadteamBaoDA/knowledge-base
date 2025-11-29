@@ -15,6 +15,7 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LogoutPage = lazy(() => import('./pages/LogoutPage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
+const SystemToolsPage = lazy(() => import('./pages/SystemToolsPage'));
 
 // Import i18n configuration
 import './i18n';
@@ -62,6 +63,7 @@ function App() {
                 )}
 
                 <Route path="/user-management" element={<UserManagementPage />} />
+                <Route path="/system-tools" element={<SystemToolsPage />} />
               </Route>
             </Routes>
           </Suspense>
