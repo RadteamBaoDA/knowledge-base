@@ -3,11 +3,13 @@ import { log } from '../../services/logger.service.js';
 import { migration as migration001 } from './001_initial_schema.js';
 import { migration as migration002 } from './002_rbac_update.js';
 import { migration as migration003 } from './003_add_user_details.js';
+import { migration as migration004 } from './004_create_minio_buckets.js';
 
 const migrations = [
   migration001,
   migration002,
   migration003,
+  migration004,
 ];
 
 export async function runMigrations(db: DatabaseAdapter): Promise<void> {

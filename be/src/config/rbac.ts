@@ -6,7 +6,8 @@ export type Permission =
     | 'view_history'
     | 'manage_users'
     | 'manage_system'
-    | 'view_analytics';
+    | 'view_analytics'
+    | 'storage:write';
 
 export const DEFAULT_ROLE: Role = 'user';
 
@@ -18,6 +19,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         'manage_users',
         'manage_system',
         'view_analytics',
+        'storage:write',
     ],
     manager: [
         'view_chat',
@@ -25,6 +27,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         'view_history',
         'manage_users', // Managers can view/edit users but maybe restricted (logic in service)
         'view_analytics',
+        'storage:write',
     ],
     user: [
         'view_chat',

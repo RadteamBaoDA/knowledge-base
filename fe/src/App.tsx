@@ -5,6 +5,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import { RagflowProvider } from './contexts/RagflowContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import RoleRoute from './components/RoleRoute';
 import SettingsDialog from './components/SettingsDialog';
 import Layout from './components/Layout';
 import { config } from './config';
@@ -18,6 +19,7 @@ const LogoutPage = lazy(() => import('./pages/LogoutPage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 const SystemToolsPage = lazy(() => import('./pages/SystemToolsPage'));
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
+const MinIOManagerPage = lazy(() => import('./pages/MinIOManagerPage'));
 
 // Import i18n configuration
 import './i18n';
@@ -73,6 +75,11 @@ function App() {
                   <AdminRoute>
                     <SystemToolsPage />
                   </AdminRoute>
+                } />
+                <Route path="/storage" element={
+                  <RoleRoute allowedRoles={['admin', 'manager']}>
+                    <MinIOManagerPage />
+                  </RoleRoute>
                 } />
 
                 {/* Error routes */}

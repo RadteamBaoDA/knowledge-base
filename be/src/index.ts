@@ -15,11 +15,14 @@ import { shutdownLangfuse } from './services/langfuse.service.js';
 import { checkConnection, closePool, getAdapter } from './db/index.js';
 import { userService } from './services/user.service.js';
 import { systemToolsService } from './services/system-tools.service.js';
+import { minioService } from './services/minio.service.js';
 import authRoutes from './routes/auth.routes.js';
 import ragflowRoutes from './routes/ragflow.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import userRoutes from './routes/user.routes.js';
 import systemToolsRoutes from './routes/system-tools.routes.js';
+import minioBucketRoutes from './routes/minio-bucket.routes.js';
+import minioStorageRoutes from './routes/minio-storage.routes.js';
 import { runMigrations } from './db/migrations/runner.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,6 +122,8 @@ app.use('/api/ragflow', ragflowRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/system-tools', systemToolsRoutes);
+app.use('/api/minio/buckets', minioBucketRoutes);
+app.use('/api/minio/storage', minioStorageRoutes);
 
 // Error handling middleware
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -43,6 +43,8 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.0",
+    "@types/minio": "^7.1.0",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.9.0",
     "@types/pg": "^8.11.10",
     "@types/uuid": "^10.0.0",
