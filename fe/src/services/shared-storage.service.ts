@@ -1,36 +1,87 @@
 23 /**
- * Shared Storage Service
+ * @fileoverview Shared Storage Service for cross-subdomain user sharing.
  * 
  * This service uses BroadcastChannel + localStorage to share user info
  * across subdomains (e.g., a.abc.com and b.abc.com).
  * 
- * For cross-subdomain sharing to work:
+ * Storage Mechanisms:
+ * - localStorage: Primary storage for same-origin access
+ * - BroadcastChannel: Real-time sync between same-origin tabs
+ * - Cookies: Cross-subdomain access with parent domain
+ * 
+ * Requirements for cross-subdomain sharing:
  * 1. Both apps must be on the same parent domain (e.g., *.abc.com)
  * 2. Cookies/localStorage must be set with the parent domain
- * 3. This uses a combination of:
- *    - localStorage (for same-origin)
- *    - BroadcastChannel (for same-origin tab sync)
- *    - postMessage with shared iframe (for cross-subdomain)
+ * 3. SHARED_STORAGE_DOMAIN env variable must be configured
+ * 
+ * Usage:
+ * ```typescript
+ * import { sharedStorage } from './shared-storage.service';
+ * 
+ * // Store user info
+ * sharedStorage.storeUser({ id, email, name, displayName, avatar });
+ * 
+ * // Get user info
+ * const user = sharedStorage.getUser();
+ * 
+ * // Subscribe to changes from other tabs
+ * const unsubscribe = sharedStorage.subscribe((user) => {
+ *   console.log('User changed:', user);
+ * });
+ * ```
+ * 
+ * @module services/shared-storage
  */
 
-// Declare global for Vite injected variable
+// ============================================================================
+// Type Declarations
+// ============================================================================
+
+/** Vite-injected environment variable for shared domain */
 declare const __SHARED_STORAGE_DOMAIN__: string;
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * User information that can be shared across subdomains.
+ */
 export interface SharedUserInfo {
+  /** Unique user identifier */
   id: string;
+  /** User email address */
   email: string;
+  /** User's full name */
   name: string;
+  /** Display name (may differ from name) */
   displayName: string;
+  /** Avatar URL (optional) */
   avatar?: string;
+  /** ISO timestamp of last update */
   lastUpdated: string;
-  source: string; // Which app stored this info
+  /** Hostname that stored this info */
+  source: string;
 }
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** LocalStorage key for user info */
 const STORAGE_KEY = 'kb_shared_user_info';
+
+/** BroadcastChannel name for tab sync */
 const BROADCAST_CHANNEL_NAME = 'kb_user_info_channel';
+
+/** Shared domain for cross-subdomain cookies */
 const SHARED_DOMAIN = typeof __SHARED_STORAGE_DOMAIN__ !== 'undefined' 
   ? __SHARED_STORAGE_DOMAIN__ 
   : '.localhost';
+
+// ============================================================================
+// Public Functions
+// ============================================================================
 
 /**
  * Get the shared storage domain for cookies
@@ -158,8 +209,18 @@ export function subscribeToUserInfoChanges(
   };
 }
 
+// ============================================================================
+// Private Functions (Cookie Helpers)
+// ============================================================================
+
 /**
- * Set a cookie that works across subdomains
+ * Set a cookie that works across subdomains.
+ * 
+ * Sets cookie with parent domain for cross-subdomain access.
+ * Cookie expires after 24 hours. Uses SameSite=Lax and Secure
+ * flag for HTTPS connections.
+ * 
+ * @param userInfo - User information to store in cookie
  */
 function setCrossSubdomainCookie(userInfo: SharedUserInfo): void {
   const value = encodeURIComponent(JSON.stringify(userInfo));
@@ -228,13 +289,26 @@ export function isSharedStorageAvailable(): boolean {
   }
 }
 
-// Export a ready-to-use instance
+// ============================================================================
+// Exported Instance
+// ============================================================================
+
+/**
+ * Shared storage service instance.
+ * Provides a convenient API for cross-subdomain user info sharing.
+ */
 export const sharedStorage = {
+  /** Store user info in all storage mechanisms */
   storeUser: storeUserInfo,
+  /** Get user info from localStorage or cookie */
   getUser: getUserInfo,
+  /** Clear user info from all storage mechanisms */
   clearUser: clearUserInfo,
+  /** Subscribe to user info changes from other tabs */
   subscribe: subscribeToUserInfoChanges,
+  /** Check if shared storage is available */
   isAvailable: isSharedStorageAvailable,
+  /** Get the configured shared domain */
   getDomain: getSharedDomain,
 };
 
