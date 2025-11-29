@@ -1,42 +1,90 @@
+/**
+ * @fileoverview RAGFlow iframe container component.
+ * 
+ * Embeds RAGFlow AI Chat or AI Search interfaces in an iframe.
+ * Handles:
+ * - URL status checking before loading
+ * - Loading states and error handling
+ * - Custom error pages for different error types
+ * - Locale appending to iframe URLs
+ * - Iframe reload functionality
+ * 
+ * @module components/RagflowIframe
+ */
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSharedUser } from '../hooks/useSharedUser';
 import { useTranslation } from 'react-i18next';
 import { useRagflow } from '../contexts/RagflowContext';
 import { AlertCircle, RefreshCw, WifiOff, Lock, FileQuestion, ServerCrash } from 'lucide-react';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Props for RagflowIframe component */
 interface RagflowIframeProps {
+  /** The type of RAGFlow interface to embed */
   path: "chat" | "search";
 }
 
+/** Error state for iframe loading failures */
 interface IframeError {
+  /** Type of error for styling and messaging */
   type: 'network' | 'forbidden' | 'notfound' | 'server' | 'unknown';
+  /** HTTP status code if available */
   statusCode?: number;
+  /** Error message to display */
   message: string;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * RAGFlow iframe container with error handling and loading states.
+ * 
+ * Embeds the RAGFlow Chat or Search interface based on the path prop.
+ * Includes URL validation, custom error pages, and retry functionality.
+ * 
+ * @param path - 'chat' or 'search' to determine which interface to load
+ */
 function RagflowIframe({ path }: RagflowIframeProps) {
   const { t, i18n } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  
+  // State management
   const [iframeSrc, setIframeSrc] = useState<string>('');
   const [iframeLoading, setIframeLoading] = useState(true);
   const [iframeError, setIframeError] = useState<IframeError | null>(null);
   const [isCheckingUrl, setIsCheckingUrl] = useState(false);
   const [urlChecked, setUrlChecked] = useState(false);
+  
+  // Get user and RAGFlow configuration
   const { user } = useSharedUser();
   const ragflow = useRagflow();
 
-  // Get the selected source ID based on path
+  // Get the selected source ID based on path (chat or search)
   const selectedSourceId = path === 'chat' ? ragflow.selectedChatSourceId : ragflow.selectedSearchSourceId;
 
-  // Update iframe src when source or locale changes
+  // ============================================================================
+  // Effects
+  // ============================================================================
+
+  /**
+   * Effect: Update iframe source URL when source or locale changes.
+   * Appends current locale to URL for internationalization.
+   */
   useEffect(() => {
     if (!ragflow.config || !selectedSourceId) return;
 
+    // Get sources array based on path type
     const sources = path === 'chat' ? ragflow.config.chatSources : ragflow.config.searchSources;
     const source = sources.find(s => s.id === selectedSourceId);
 
     if (source) {
-      // Append locale to URL
+      // Append locale query parameter to URL
       const separator = source.url.includes('?') ? '&' : '?';
       const urlWithLocale = `${source.url}${separator}locale=${i18n.language}`;
       setIframeSrc(urlWithLocale);
@@ -47,12 +95,22 @@ function RagflowIframe({ path }: RagflowIframeProps) {
       if (fallbackUrl) {
         const separator = fallbackUrl.includes('?') ? '&' : '?';
         setIframeSrc(`${fallbackUrl}${separator}locale=${i18n.language}`);
-        setUrlChecked(false); // Reset check when URL changes
+        setUrlChecked(false);
       }
     }
   }, [ragflow.config, selectedSourceId, i18n.language, path]);
 
-  // Check URL status before loading iframe
+  // ============================================================================
+  // Callbacks
+  // ============================================================================
+
+  /**
+   * Check URL availability before loading iframe.
+   * Uses no-cors mode since we can't read status due to CORS.
+   * Detects network errors and timeouts.
+   * 
+   * @param url - The URL to check
+   */
   const checkUrlStatus = useCallback(async (url: string) => {
     if (!url) return;
 
@@ -60,27 +118,26 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     setIframeError(null);
 
     try {
-      // Use a proxy endpoint to check the URL status
-      // We can't directly check due to CORS, so we'll try to load it and catch errors
+      // Create abort controller for timeout handling
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
+      // Attempt HEAD request with no-cors (can't read status, but detects network errors)
       const response = await fetch(url, {
         method: 'HEAD',
-        mode: 'no-cors', // This won't give us status but will detect network errors
+        mode: 'no-cors',
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-      // Since we're using no-cors, we can't read the status
-      // If we get here without error, assume it's accessible
+      // If we reach here without error, assume service is accessible
       setUrlChecked(true);
       setIframeError(null);
     } catch (error: any) {
       console.error('[RagflowIframe] URL check failed:', error);
 
-      // Determine error type
+      // Classify error type for appropriate error page
       if (error.name === 'AbortError') {
         setIframeError({
           type: 'network',
@@ -103,14 +160,19 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     }
   }, []);
 
-  // Check URL status when src changes
+  /**
+   * Effect: Check URL status when iframe source changes.
+   */
   useEffect(() => {
     if (iframeSrc && !urlChecked) {
       checkUrlStatus(iframeSrc);
     }
   }, [iframeSrc, urlChecked, checkUrlStatus]);
 
-  // Log iframe load event
+  /**
+   * Handler: Called when iframe successfully loads.
+   * Logs the load event and clears loading/error states.
+   */
   const handleIframeLoad = useCallback(() => {
     console.log('[RagflowIframe] Iframe loaded:', {
       src: iframeSrc,
@@ -120,11 +182,14 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     setIframeError(null);
   }, [iframeSrc, user]);
 
-  // Handle iframe error
+  /**
+   * Handler: Called when iframe fails to load.
+   * Sets a generic error if no specific error is already set.
+   */
   const handleIframeError = useCallback(() => {
     console.error('[RagflowIframe] Iframe failed to load:', iframeSrc);
 
-    // Set a generic error if we don't already have one
+    // Only set generic error if we don't have a specific one
     if (!iframeError) {
       setIframeError({
         type: 'unknown',
@@ -134,14 +199,19 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     setIframeLoading(false);
   }, [iframeSrc, iframeError]);
 
-  // Reset iframe loading state when src changes
+  /**
+   * Effect: Reset loading state when iframe source changes.
+   */
   useEffect(() => {
     if (iframeSrc) {
       setIframeLoading(true);
     }
   }, [iframeSrc]);
 
-  // Reload iframe
+  /**
+   * Handler: Reload the iframe by resetting its source.
+   * Uses a small delay to ensure clean reload.
+   */
   const handleReload = useCallback(() => {
     setIframeLoading(true);
     setIframeError(null);
@@ -156,8 +226,19 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     }
   }, [iframeSrc]);
 
-  // Render error page based on error type
+  // ============================================================================
+  // Render Helpers
+  // ============================================================================
+
+  /**
+   * Render a custom error page based on error type.
+   * Each error type has its own icon, colors, and messaging.
+   * 
+   * @param error - The error to display
+   * @returns JSX for the error page
+   */
   const renderErrorPage = (error: IframeError) => {
+    // Configuration for different error types
     const errorConfigs = {
       network: {
         icon: WifiOff,

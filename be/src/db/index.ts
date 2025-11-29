@@ -1,9 +1,33 @@
+/**
+ * @fileoverview Database abstraction layer for the Knowledge Base backend.
+ * 
+ * This module provides a unified interface for database operations,
+ * supporting both PostgreSQL (production) and SQLite (development).
+ * 
+ * Key features:
+ * - Adapter pattern for database-agnostic operations
+ * - Automatic fallback from PostgreSQL to SQLite if connection fails
+ * - Connection pooling for PostgreSQL
+ * - Lazy initialization of database connections
+ * 
+ * @module db
+ * @example
+ * import { query, queryOne, getAdapter } from './db/index.js';
+ * 
+ * // Simple query
+ * const users = await query<User>('SELECT * FROM users');
+ * 
+ * // Query with parameters
+ * const user = await queryOne<User>('SELECT * FROM users WHERE id = $1', [userId]);
+ */
+
 import { config } from '../config/index.js';
 import { PostgreSQLAdapter } from './adapters/postgresql.js';
 import { SQLiteAdapter } from './adapters/sqlite.js';
 import { DatabaseAdapter } from './types.js';
 import { log } from '../services/logger.service.js';
 
+/** Singleton database adapter instance */
 let adapter: DatabaseAdapter | null = null;
 
 /**
@@ -63,7 +87,19 @@ export async function query<T>(text: string, params?: unknown[]): Promise<T[]> {
 }
 
 /**
- * Execute a single query and return first row
+ * Execute a query and return the first row only.
+ * Useful for queries expected to return a single result (by ID, unique constraint).
+ * 
+ * @template T - The expected row type
+ * @param text - SQL query string with $1, $2, etc. placeholders
+ * @param params - Parameter values to substitute into query
+ * @returns First row of results or undefined if no rows
+ * 
+ * @example
+ * const user = await queryOne<User>('SELECT * FROM users WHERE email = $1', ['john@example.com']);
+ * if (user) {
+ *   console.log(user.display_name);
+ * }
  */
 export async function queryOne<T>(text: string, params?: unknown[]): Promise<T | undefined> {
   const db = await getAdapter();
@@ -71,7 +107,24 @@ export async function queryOne<T>(text: string, params?: unknown[]): Promise<T |
 }
 
 /**
- * Get a client for transaction support
+ * Get a database client for transaction support.
+ * The client must be released after use to return it to the pool.
+ * 
+ * @returns Database client with query and release methods
+ * 
+ * @example
+ * const client = await getClient();
+ * try {
+ *   await client.query('BEGIN');
+ *   await client.query('INSERT INTO ...');
+ *   await client.query('UPDATE ...');
+ *   await client.query('COMMIT');
+ * } catch (err) {
+ *   await client.query('ROLLBACK');
+ *   throw err;
+ * } finally {
+ *   client.release();
+ * }
  */
 export async function getClient() {
   const db = await getAdapter();
@@ -79,7 +132,8 @@ export async function getClient() {
 }
 
 /**
- * Close the database connection pool
+ * Close the database connection pool.
+ * Should be called during graceful shutdown to properly release resources.
  */
 export async function closePool(): Promise<void> {
   if (adapter) {
@@ -89,7 +143,10 @@ export async function closePool(): Promise<void> {
 }
 
 /**
- * Check database connectivity
+ * Check database connectivity.
+ * Attempts to execute a simple query to verify the connection is working.
+ * 
+ * @returns True if connected, false if connection failed
  */
 export async function checkConnection(): Promise<boolean> {
   try {
@@ -102,15 +159,29 @@ export async function checkConnection(): Promise<boolean> {
   }
 }
 
-// Backward compatibility exports
+// ============================================================================
+// BACKWARD COMPATIBILITY
+// ============================================================================
+
+/**
+ * @deprecated Use getAdapter() instead. Database now uses adapter pattern.
+ * Kept for backward compatibility with older code.
+ * @returns null (always)
+ */
 export function getPool() {
   log.warn('getPool() is deprecated, database now uses adapter pattern');
   return null;
 }
 
-// Export db object for convenience
+/**
+ * Convenience object for database operations.
+ * Provides an alternative syntax: db.query() instead of query()
+ */
 export const db = {
+  /** Execute a query and return all rows */
   query,
+  /** Execute a query and return first row */
   queryOne,
+  /** Get a client for transaction support */
   getClient,
 };

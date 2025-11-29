@@ -1,3 +1,22 @@
+/**
+ * @fileoverview MinIO storage operations routes.
+ * 
+ * This module provides API endpoints for file and folder operations
+ * within MinIO buckets. Supports listing, uploading, downloading,
+ * and deleting objects.
+ * 
+ * All routes require 'storage:write' permission (manager/admin roles).
+ * 
+ * Features:
+ * - List files and folders in a bucket
+ * - Upload files (multipart, up to 100MB)
+ * - Create folders
+ * - Delete files and folders (single and batch)
+ * - Generate presigned download URLs
+ * 
+ * @module routes/minio-storage
+ */
+
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { minioService } from '../services/minio.service.js';
@@ -8,7 +27,14 @@ import { MinioBucket } from '../models/minio-bucket.model.js';
 
 const router = Router();
 
-// Configure multer for memory storage (files stored in memory, not disk)
+// ============================================================================
+// Multer Configuration
+// ============================================================================
+
+/**
+ * Multer configuration for file uploads.
+ * Uses memory storage to avoid temp files on disk.
+ */
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -16,19 +42,37 @@ const upload = multer({
     },
 });
 
-// Manager and admin can perform storage operations
+// ============================================================================
+// Middleware
+// ============================================================================
+
+/** Manager and admin can perform storage operations */
 router.use(requirePermission('storage:write'));
+
+// ============================================================================
+// Route Handlers
+// ============================================================================
 
 /**
  * GET /api/minio/storage/:bucketId/list
- * List files and folders in a bucket
+ * List files and folders in a bucket.
+ * 
+ * Returns objects at the specified prefix level (non-recursive).
+ * Use prefix query parameter to navigate into folders.
+ * 
+ * @requires storage:write permission
+ * @param {string} bucketId - Bucket ID (UUID)
+ * @query {string} [prefix=''] - Path prefix to list (e.g., 'folder1/')
+ * @returns {Object} Bucket info, objects array, and count
+ * @returns {404} If bucket not found
+ * @returns {500} If MinIO operation fails
  */
 router.get('/:bucketId/list', async (req: Request, res: Response) => {
     try {
         const { bucketId } = req.params;
         const { prefix = '' } = req.query;
 
-        // Get bucket details
+        // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
             'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
             [bucketId]
@@ -68,7 +112,19 @@ router.get('/:bucketId/list', async (req: Request, res: Response) => {
 
 /**
  * POST /api/minio/storage/:bucketId/upload
- * Upload files to a bucket
+ * Upload files to a bucket.
+ * 
+ * Accepts multipart form data with up to 20 files.
+ * Files are stored in memory during upload (100MB limit per file).
+ * 
+ * @requires storage:write permission
+ * @param {string} bucketId - Bucket ID (UUID)
+ * @body {string} [prefix=''] - Path prefix for uploads
+ * @body {File[]} files - Files to upload (multipart)
+ * @returns {Object} Upload results with success/failure counts
+ * @returns {400} If no files provided
+ * @returns {404} If bucket not found
+ * @returns {500} If upload fails
  */
 router.post('/:bucketId/upload', upload.array('files', 20), async (req: Request, res: Response) => {
     try {
@@ -136,7 +192,19 @@ router.post('/:bucketId/upload', upload.array('files', 20), async (req: Request,
 
 /**
  * POST /api/minio/storage/:bucketId/folder
- * Create a folder in a bucket
+ * Create a folder in a bucket.
+ * 
+ * Creates a folder (empty object with trailing slash) in MinIO.
+ * Folder name must contain only alphanumeric, spaces, hyphens, underscores.
+ * 
+ * @requires storage:write permission
+ * @param {string} bucketId - Bucket ID (UUID)
+ * @body {string} folder_name - Name for the new folder
+ * @body {string} [prefix=''] - Parent path prefix
+ * @returns {Object} Success message and folder path
+ * @returns {400} If folder_name missing or invalid
+ * @returns {404} If bucket not found
+ * @returns {500} If creation fails
  */
 router.post('/:bucketId/folder', async (req: Request, res: Response) => {
     try {
@@ -195,7 +263,19 @@ router.post('/:bucketId/folder', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/minio/storage/:bucketId/delete
- * Delete a file or folder
+ * Delete a file or folder.
+ * 
+ * For folders, recursively deletes all contents.
+ * For files, deletes the single object.
+ * 
+ * @requires storage:write permission
+ * @param {string} bucketId - Bucket ID (UUID)
+ * @body {string} object_name - Object path to delete
+ * @body {boolean} [is_folder] - Whether the object is a folder
+ * @returns {Object} Success message
+ * @returns {400} If object_name missing
+ * @returns {404} If bucket not found
+ * @returns {500} If deletion fails
  */
 router.delete('/:bucketId/delete', async (req: Request, res: Response) => {
     try {
@@ -246,7 +326,18 @@ router.delete('/:bucketId/delete', async (req: Request, res: Response) => {
 
 /**
  * POST /api/minio/storage/:bucketId/batch-delete
- * Delete multiple files or folders
+ * Delete multiple files or folders.
+ * 
+ * Efficiently deletes multiple objects in a single operation.
+ * Files are deleted in batch, folders are deleted recursively.
+ * 
+ * @requires storage:write permission
+ * @param {string} bucketId - Bucket ID (UUID)
+ * @body {Array<{name: string, isFolder: boolean}>} objects - Objects to delete
+ * @returns {Object} Deletion summary with counts
+ * @returns {400} If objects array missing or empty
+ * @returns {404} If bucket not found
+ * @returns {500} If deletion fails
  */
 router.post('/:bucketId/batch-delete', async (req: Request, res: Response) => {
     try {
@@ -309,7 +400,18 @@ router.post('/:bucketId/batch-delete', async (req: Request, res: Response) => {
 
 /**
  * GET /api/minio/storage/:bucketId/download/:path(*)
- * Get presigned download URL for a file
+ * Get presigned download URL for a file.
+ * 
+ * Generates a time-limited presigned URL for secure file download.
+ * URL is valid for 1 hour (3600 seconds).
+ * 
+ * @requires storage:write permission
+ * @param {string} bucketId - Bucket ID (UUID)
+ * @param {string} path - Object path to download (captured by *)
+ * @returns {Object} Presigned download URL and expiration time
+ * @returns {400} If path missing
+ * @returns {404} If bucket not found
+ * @returns {500} If URL generation fails
  */
 router.get('/:bucketId/download/*', async (req: Request, res: Response) => {
     try {

@@ -1,3 +1,17 @@
+/**
+ * @fileoverview Shared user hook for cross-subdomain user info.
+ * 
+ * This hook manages user information that can be shared across
+ * different subdomains (e.g., app.example.com and admin.example.com).
+ * 
+ * Sharing mechanisms:
+ * 1. localStorage (same-origin only)
+ * 2. BroadcastChannel (same-origin tab sync)
+ * 3. Cross-subdomain cookies (for different subdomains)
+ * 
+ * @module hooks/useSharedUser
+ */
+
 import { useEffect, useState, useCallback } from 'react';
 import { 
   sharedStorage, 
@@ -5,31 +19,61 @@ import {
   subscribeToUserInfoChanges 
 } from '../services/shared-storage.service';
 
+/** Backend API base URL */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Return type for useSharedUser hook.
+ */
 interface UseSharedUserResult {
+  /** Current shared user info or null */
   user: SharedUserInfo | null;
+  /** Whether user data is being fetched */
   isLoading: boolean;
+  /** Error message if fetch failed */
   error: string | null;
+  /** Function to refresh user data from backend */
   refresh: () => Promise<void>;
+  /** Function to clear shared user data */
   clear: () => void;
 }
 
+// ============================================================================
+// Hook Implementation
+// ============================================================================
+
 /**
- * Hook to access shared user info across subdomains
+ * Hook to access shared user info across subdomains.
  * 
  * This hook:
  * 1. First checks shared storage (localStorage/cookie) for cached user
  * 2. Then fetches fresh data from backend /api/auth/me
  * 3. Stores the result in shared storage for other apps
  * 4. Subscribes to changes from other tabs/subdomains
+ * 
+ * @returns Shared user state and control functions
+ * 
+ * @example
+ * ```tsx
+ * const { user, isLoading, refresh } = useSharedUser();
+ * if (user) {
+ *   console.log('Shared user:', user.email);
+ * }
+ * ```
  */
 export function useSharedUser(): UseSharedUserResult {
   const [user, setUser] = useState<SharedUserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user from backend and store in shared storage
+  /**
+   * Fetches user from backend and stores in shared storage.
+   * Updates local state with fetched user data.
+   */
   const fetchAndStoreUser = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -74,20 +118,23 @@ export function useSharedUser(): UseSharedUserResult {
     }
   }, []);
 
-  // Initial load: check shared storage first, then fetch
+  /**
+   * Effect: Initialize user on mount.
+   * Checks cache first, then refreshes from backend.
+   */
   useEffect(() => {
     const initUser = async () => {
-      // Check shared storage first
+      // Check shared storage cache first
       const cachedUser = sharedStorage.getUser();
       if (cachedUser) {
         console.log('[useSharedUser] Found cached user:', cachedUser.email);
         setUser(cachedUser);
         setIsLoading(false);
         
-        // Still refresh from backend in background
+        // Refresh from backend in background
         fetchAndStoreUser();
       } else {
-        // No cached user, fetch from backend
+        // No cache, fetch from backend
         await fetchAndStoreUser();
       }
     };
@@ -95,7 +142,10 @@ export function useSharedUser(): UseSharedUserResult {
     initUser();
   }, [fetchAndStoreUser]);
 
-  // Subscribe to changes from other tabs/subdomains
+  /**
+   * Effect: Subscribe to user updates from other tabs/subdomains.
+   * Uses BroadcastChannel or storage events.
+   */
   useEffect(() => {
     const unsubscribe = subscribeToUserInfoChanges((updatedUser) => {
       console.log('[useSharedUser] Received user update from another source');
@@ -105,6 +155,9 @@ export function useSharedUser(): UseSharedUserResult {
     return unsubscribe;
   }, []);
 
+  /**
+   * Clears shared user data from all storage.
+   */
   const clear = useCallback(() => {
     sharedStorage.clearUser();
     setUser(null);
@@ -119,25 +172,34 @@ export function useSharedUser(): UseSharedUserResult {
   };
 }
 
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
 /**
- * Get shared user info synchronously (from cache only)
- * Use this when you need immediate access without async
+ * Get shared user info synchronously from cache.
+ * Use this when you need immediate access without async.
+ * Returns null if no cached user exists.
+ * 
+ * @returns Cached user info or null
  */
 export function getSharedUserSync(): SharedUserInfo | null {
   return sharedStorage.getUser();
 }
 
 /**
- * Store user info in shared storage
- * Call this after successful authentication
+ * Store user info in shared storage.
+ * Call this after successful authentication.
+ * 
+ * @param user - User info to store (without metadata fields)
  */
 export function setSharedUser(user: Omit<SharedUserInfo, 'lastUpdated' | 'source'>): void {
   sharedStorage.storeUser(user);
 }
 
 /**
- * Clear shared user info
- * Call this on logout
+ * Clear shared user info from all storage.
+ * Call this on logout to clean up cross-subdomain data.
  */
 export function clearSharedUser(): void {
   sharedStorage.clearUser();
