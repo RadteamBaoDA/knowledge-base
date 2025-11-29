@@ -107,3 +107,10 @@ export function getPool() {
   log.warn('getPool() is deprecated, database now uses adapter pattern');
   return null;
 }
+
+// Export db object for convenience
+export const db = {
+  query,
+  queryOne,
+  getClient,
+};

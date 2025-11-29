@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  Server
+  Server,
+  HardDrive
 } from 'lucide-react';
 
 function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
@@ -65,6 +66,8 @@ function Layout() {
         return t('pages.history.title');
       case '/system-tools':
         return 'System Monitoring Tools';
+      case '/storage':
+        return 'Knowledge Base Storage';
       default:
         return t('common.appName');
     }
@@ -126,6 +129,12 @@ function Layout() {
               {!isCollapsed && <span>System Tools</span>}
             </NavLink>
           )}
+          {(user?.role === 'admin' || user?.role === 'manager') && (
+            <NavLink to="/storage" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="Storage">
+              <HardDrive size={20} />
+              {!isCollapsed && <span>Storage</span>}
+            </NavLink>
+          )}
         </nav>
 
         <div className={`mt-auto pt-4 border-t border-white/10 space-y-3 pb-4 ${resolvedTheme === 'dark' ? '' : 'bg-white'}`}>
@@ -155,6 +164,8 @@ function Layout() {
         <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 h-16 flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">{getPageTitle()}</h1>
 
+          <div id="header-actions" className="flex items-center gap-2 ml-auto"></div>
+
           {showChatDropdown && (
             <Select
               value={ragflow.selectedChatSourceId}
@@ -173,7 +184,7 @@ function Layout() {
             />
           )}
         </header>
-        <div className={`flex-1 ${location.pathname === '/ai-chat' || location.pathname === '/ai-search' ? '' : 'p-8'}`}>
+        <div className={`flex-1 ${['/ai-chat', '/ai-search', '/storage'].includes(location.pathname) ? '' : 'p-8'}`}>
           <Outlet />
         </div>
       </main>
