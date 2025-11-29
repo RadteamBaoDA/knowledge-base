@@ -1,15 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { log } from '../services/logger.service.js';
+import { AzureAdUser } from '../services/auth.service.js';
+import { Permission, Role, hasPermission } from '../config/rbac.js';
 
 // Extend Express Session to include user data
 declare module 'express-session' {
   interface SessionData {
-    user?: {
-      id: string;
-      email: string;
-      name: string;
-      displayName: string;
-      avatar?: string | undefined;
+    user?: AzureAdUser & {
+      role?: string;
+      permissions?: string[];
     };
     oauthState?: string | undefined;
     accessToken?: string | undefined;
@@ -19,12 +18,9 @@ declare module 'express-session' {
 // Extend Express Request type to include user
 declare global {
   namespace Express {
-    interface User {
-      id: string;
-      email: string;
-      name: string;
-      displayName: string;
-      avatar?: string | undefined;
+    interface User extends AzureAdUser {
+      role?: string;
+      permissions?: string[];
     }
 
     interface Request {
@@ -80,3 +76,60 @@ export function getCurrentUser(req: Request): Express.User | undefined {
   return req.user;
 }
 
+/**
+ * Middleware to check for specific permission
+ */
+export function requirePermission(permission: Permission) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = req.session?.user;
+
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (user.role && hasPermission(user.role, permission)) {
+      next();
+      return;
+    }
+
+    // Check explicit permissions array if we decide to support custom permissions per user
+    if (user.permissions && user.permissions.includes(permission)) {
+      next();
+      return;
+    }
+
+    log.warn('Access denied: missing permission', {
+      userId: user.id,
+      role: user.role,
+      requiredPermission: permission
+    });
+    res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+  };
+}
+
+/**
+ * Middleware to check for specific role
+ */
+export function requireRole(role: Role) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = req.session?.user;
+
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (user.role === role) {
+      next();
+      return;
+    }
+
+    log.warn('Access denied: incorrect role', {
+      userId: user.id,
+      userRole: user.role,
+      requiredRole: role
+    });
+    res.status(403).json({ error: 'Forbidden: Insufficient role' });
+  };
+}

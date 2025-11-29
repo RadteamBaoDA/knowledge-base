@@ -58,8 +58,8 @@ export function RagflowProvider({ children }: RagflowProviderProps) {
 
                 // Initialize chat source
                 if (data.chatSources.length > 0) {
-                    let chatSourceId = data.chatSources[0].id;
-                    if (user?.id) {
+                    let chatSourceId = data.chatSources[0]?.id || '';
+                    if (user?.id && chatSourceId) {
                         const saved = await userPreferences.get<string>(user.id, 'ragflow_source_chat');
                         if (saved && data.chatSources.some(s => s.id === saved)) {
                             chatSourceId = saved;
@@ -70,8 +70,8 @@ export function RagflowProvider({ children }: RagflowProviderProps) {
 
                 // Initialize search source
                 if (data.searchSources.length > 0) {
-                    let searchSourceId = data.searchSources[0].id;
-                    if (user?.id) {
+                    let searchSourceId = data.searchSources[0]?.id || '';
+                    if (user?.id && searchSourceId) {
                         const saved = await userPreferences.get<string>(user.id, 'ragflow_source_search');
                         if (saved && data.searchSources.some(s => s.id === saved)) {
                             searchSourceId = saved;

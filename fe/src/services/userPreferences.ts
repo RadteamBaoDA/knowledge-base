@@ -50,7 +50,7 @@ class UserPreferencesService {
     async get<T>(userId: string, key: string, defaultValue?: T): Promise<T | undefined> {
         try {
             const db = await this.getDB();
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 const transaction = db.transaction(STORE_NAME, 'readonly');
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.get([userId, key]);
@@ -77,7 +77,7 @@ class UserPreferencesService {
     async set(userId: string, key: string, value: any): Promise<void> {
         try {
             const db = await this.getDB();
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 const transaction = db.transaction(STORE_NAME, 'readwrite');
                 const store = transaction.objectStore(STORE_NAME);
 
@@ -93,7 +93,7 @@ class UserPreferencesService {
                 request.onsuccess = () => resolve();
                 request.onerror = (event) => {
                     console.error(`Failed to save setting ${key} for user ${userId}`, (event.target as IDBOpenDBRequest).error);
-                    reject((event.target as IDBOpenDBRequest).error);
+                    resolve(); // Resolve anyway to prevent hanging
                 };
             });
         } catch (error) {

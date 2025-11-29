@@ -7,6 +7,9 @@ export interface AzureAdUser {
   name: string;
   displayName: string;
   avatar?: string | undefined;
+  department?: string | undefined;
+  jobTitle?: string | undefined;
+  mobilePhone?: string | undefined;
 }
 
 export interface TokenResponse {
@@ -87,7 +90,7 @@ function generateFallbackAvatar(displayName: string): string {
  * Get user profile from Microsoft Graph API
  */
 export async function getUserProfile(accessToken: string): Promise<AzureAdUser> {
-  const response = await fetch('https://graph.microsoft.com/v1.0/me', {
+  const response = await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName,department,jobTitle,mobilePhone', {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -102,6 +105,9 @@ export async function getUserProfile(accessToken: string): Promise<AzureAdUser> 
     displayName?: string;
     mail?: string;
     userPrincipalName?: string;
+    department?: string;
+    jobTitle?: string;
+    mobilePhone?: string;
   };
 
   const displayName = profile.displayName ?? '';
@@ -115,7 +121,7 @@ export async function getUserProfile(accessToken: string): Promise<AzureAdUser> 
         Authorization: `Bearer ${accessToken}`,
       },
     });
-    
+
     if (photoResponse.ok) {
       const photoBlob = await photoResponse.arrayBuffer();
       const base64 = Buffer.from(photoBlob).toString('base64');
@@ -123,13 +129,13 @@ export async function getUserProfile(accessToken: string): Promise<AzureAdUser> 
       avatar = `data:${contentType};base64,${base64}`;
       log.debug('User avatar fetched from Azure AD', { userId: profile.id });
     } else {
-      log.debug('Azure AD photo not available, using fallback', { 
-        userId: profile.id, 
-        status: photoResponse.status 
+      log.debug('Azure AD photo not available, using fallback', {
+        userId: profile.id,
+        status: photoResponse.status
       });
     }
   } catch (err) {
-    log.debug('Failed to fetch Azure AD photo, using fallback', { 
+    log.debug('Failed to fetch Azure AD photo, using fallback', {
       userId: profile.id,
       error: err instanceof Error ? err.message : String(err)
     });
@@ -146,6 +152,9 @@ export async function getUserProfile(accessToken: string): Promise<AzureAdUser> 
     name: displayName,
     displayName,
     avatar,
+    department: profile.department,
+    jobTitle: profile.jobTitle,
+    mobilePhone: profile.mobilePhone,
   };
 }
 

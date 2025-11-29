@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config/index.js';
 import { log } from '../services/logger.service.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requirePermission } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -13,7 +13,7 @@ router.use(requireAuth);
  * Returns RAGFlow iframe URLs for frontend
  * Uses direct RAGFlow URLs - no proxy
  */
-router.get('/config', (_req: Request, res: Response) => {
+router.get('/config', requirePermission('view_chat'), (_req: Request, res: Response) => {
   log.debug('RAGFlow config requested');
   res.json({
     aiChatUrl: config.ragflow.aiChatUrl,

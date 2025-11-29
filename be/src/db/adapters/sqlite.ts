@@ -25,47 +25,6 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
         // Enable foreign keys
         this.db.pragma('foreign_keys = ON');
-
-        this.initializeTables();
-    }
-
-    private initializeTables(): void {
-        // Create users table
-        this.db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        display_name TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
-
-        // Create chat_sessions table
-        this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_sessions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-
-        // Create chat_messages table
-        this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-      )
-    `);
-
-        log.debug('SQLite tables initialized');
     }
 
     async query<T>(text: string, params?: unknown[]): Promise<T[]> {
@@ -74,10 +33,19 @@ export class SQLiteAdapter implements DatabaseAdapter {
             const sqliteQuery = this.convertQuery(text);
             const stmt = this.db.prepare(sqliteQuery);
 
-            if (params && params.length > 0) {
-                return stmt.all(...params) as T[];
+            if (stmt.reader) {
+                if (params && params.length > 0) {
+                    return stmt.all(...params) as T[];
+                } else {
+                    return stmt.all() as T[];
+                }
             } else {
-                return stmt.all() as T[];
+                if (params && params.length > 0) {
+                    stmt.run(...params);
+                } else {
+                    stmt.run();
+                }
+                return [] as T[];
             }
         } catch (error) {
             log.error('SQLite query error', {

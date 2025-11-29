@@ -1,8 +1,9 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../contexts/SettingsContext';
+import { Dialog } from '../components/Dialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -15,6 +16,12 @@ function LoginPage() {
   const redirect = searchParams.get('redirect') || '/ai-chat';
   const { isAuthenticated, isLoading } = useAuth();
 
+  const [enableRootLogin, setEnableRootLogin] = useState(false);
+  const [isRootLoginOpen, setIsRootLoginOpen] = useState(false);
+  const [rootUsername, setRootUsername] = useState('');
+  const [rootPassword, setRootPassword] = useState('');
+  const [rootLoginError, setRootLoginError] = useState<string | null>(null);
+
   const logoSrc = resolvedTheme === 'dark' ? '/src/assets/logo-dark.png' : '/src/assets/logo.png';
 
   // Apply theme class to document for login page (since it's outside Layout)
@@ -25,6 +32,22 @@ function LoginPage() {
       document.documentElement.classList.remove('dark');
     }
   }, [resolvedTheme]);
+
+  // Fetch auth config
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/config`);
+        if (response.ok) {
+          const data = await response.json();
+          setEnableRootLogin(data.enableRootLogin);
+        }
+      } catch (err) {
+        console.error('Failed to fetch auth config:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   // If already authenticated, redirect to intended destination
   useEffect(() => {
@@ -41,28 +64,26 @@ function LoginPage() {
     window.location.href = loginUrl;
   };
 
-  const handleDevLogin = async () => {
-    // For development: create a real session with dev user
+  const handleRootLogin = async () => {
+    setRootLoginError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/dev-login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login/root`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: rootUsername, password: rootPassword }),
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ redirect }),
       });
 
       if (response.ok) {
-        console.log('[Login] Dev login successful, navigating to:', redirect);
-        // Navigate to the redirect URL
-        navigate(redirect, { replace: true });
+        // Force reload to pick up session
+        window.location.href = redirect;
       } else {
-        const error = await response.json();
-        console.error('[Login] Dev login failed:', error);
+        const data = await response.json();
+        setRootLoginError(data.error || 'Login failed');
       }
     } catch (err) {
-      console.error('[Login] Dev login error:', err);
+      setRootLoginError('An error occurred during login');
+      console.error(err);
     }
   };
 
@@ -112,12 +133,12 @@ function LoginPage() {
             {t('login.signInMicrosoft')}
           </button>
 
-          {import.meta.env.DEV && (
+          {enableRootLogin && (
             <button
-              onClick={handleDevLogin}
+              onClick={() => setIsRootLoginOpen(true)}
               className="w-full btn btn-secondary py-3 text-base"
             >
-              {t('login.devUser')}
+              Login as Root
             </button>
           )}
         </div>
@@ -126,6 +147,60 @@ function LoginPage() {
           {t('login.signInPrompt')}
         </p>
       </div>
+
+      <Dialog
+        open={isRootLoginOpen}
+        onClose={() => setIsRootLoginOpen(false)}
+        title="Root Login"
+        footer={
+          <>
+            <button
+              onClick={() => setIsRootLoginOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRootLogin}
+              className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors"
+            >
+              Login
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4 py-4">
+          {rootLoginError && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+              {rootLoginError}
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Username
+            </label>
+            <input
+              type="text"
+              value={rootUsername}
+              onChange={(e) => setRootUsername(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="admin@localhost"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              value={rootPassword}
+              onChange={(e) => setRootPassword(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

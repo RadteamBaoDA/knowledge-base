@@ -14,6 +14,7 @@ const AiSearchPage = lazy(() => import('./pages/AiSearchPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LogoutPage = lazy(() => import('./pages/LogoutPage'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 
 // Import i18n configuration
 import './i18n';
@@ -59,6 +60,8 @@ function App() {
                 {config.features.enableHistory && (
                   <Route path="/history" element={<HistoryPage />} />
                 )}
+
+                <Route path="/user-management" element={<UserManagementPage />} />
               </Route>
             </Routes>
           </Suspense>
