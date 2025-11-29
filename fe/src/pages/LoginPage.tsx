@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Login page component with Azure AD OAuth.
+ * 
+ * Provides authentication UI with:
+ * - Microsoft/Azure AD sign-in button
+ * - Optional root login for development/emergency access
+ * - Redirect handling for post-login navigation
+ * - Error message display from OAuth flow
+ * 
+ * @module pages/LoginPage
+ */
+
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
@@ -5,26 +17,52 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../contexts/SettingsContext';
 import { Dialog } from '../components/Dialog';
 
+/** API base URL from environment */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Login page with Azure AD OAuth and optional root login.
+ * 
+ * Features:
+ * - Azure AD OAuth sign-in button
+ * - Optional root login dialog (when enabled in config)
+ * - Theme-aware styling
+ * - Automatic redirect if already authenticated
+ * - Error display from OAuth callback
+ */
 function LoginPage() {
   const { t } = useTranslation();
   const { resolvedTheme } = useSettings();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // Get error and redirect from URL params
   const error = searchParams.get('error');
   const redirect = searchParams.get('redirect') || '/ai-chat';
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Root login state
   const [enableRootLogin, setEnableRootLogin] = useState(false);
   const [isRootLoginOpen, setIsRootLoginOpen] = useState(false);
   const [rootUsername, setRootUsername] = useState('');
   const [rootPassword, setRootPassword] = useState('');
   const [rootLoginError, setRootLoginError] = useState<string | null>(null);
 
+  // Select logo based on theme
   const logoSrc = resolvedTheme === 'dark' ? '/src/assets/logo-dark.png' : '/src/assets/logo.png';
 
-  // Apply theme class to document for login page (since it's outside Layout)
+  // ============================================================================
+  // Effects
+  // ============================================================================
+
+  /**
+   * Effect: Apply theme class to document.
+   * Required since login page is outside Layout component.
+   */
   useEffect(() => {
     if (resolvedTheme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -33,7 +71,10 @@ function LoginPage() {
     }
   }, [resolvedTheme]);
 
-  // Fetch auth config
+  /**
+   * Effect: Fetch auth configuration.
+   * Checks if root login is enabled for this deployment.
+   */
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -49,7 +90,10 @@ function LoginPage() {
     fetchConfig();
   }, []);
 
-  // If already authenticated, redirect to intended destination
+  /**
+   * Effect: Redirect if already authenticated.
+   * Navigates to the intended destination from redirect param.
+   */
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       console.log('[Login] Already authenticated, redirecting to:', redirect);
@@ -57,13 +101,24 @@ function LoginPage() {
     }
   }, [isAuthenticated, isLoading, navigate, redirect]);
 
+  // ============================================================================
+  // Handlers
+  // ============================================================================
+
+  /**
+   * Handle Microsoft/Azure AD login button click.
+   * Redirects to backend OAuth login endpoint with redirect URL.
+   */
   const handleLogin = () => {
-    // Redirect to backend Azure AD login with redirect parameter
     const loginUrl = `${API_BASE_URL}/api/auth/login?redirect=${encodeURIComponent(window.location.origin + redirect)}`;
     console.log('[Login] Redirecting to:', loginUrl);
     window.location.href = loginUrl;
   };
 
+  /**
+   * Handle root login form submission.
+   * Posts credentials to backend and redirects on success.
+   */
   const handleRootLogin = async () => {
     setRootLoginError(null);
     try {

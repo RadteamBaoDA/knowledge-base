@@ -1,3 +1,17 @@
+/**
+ * @fileoverview Chat history page component.
+ * 
+ * Displays user's chat session history with:
+ * - Full-text search across messages
+ * - Date range filtering
+ * - Bulk selection and deletion
+ * - Individual session deletion
+ * 
+ * Uses React Query for data fetching and mutations.
+ * 
+ * @module pages/HistoryPage
+ */
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -5,11 +19,21 @@ import { apiFetch } from '../lib/api';
 import { Dialog } from '../components/Dialog';
 import { Checkbox } from '../components/Checkbox';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Chat session with messages */
 interface ChatSession {
+  /** Unique session identifier */
   id: string;
+  /** Session title (usually first message summary) */
   title: string;
+  /** ISO timestamp when session was created */
   createdAt: string;
+  /** ISO timestamp when session was last updated */
   updatedAt: string;
+  /** Array of messages in the session */
   messages: Array<{
     id: string;
     role: 'user' | 'assistant';
@@ -18,11 +42,13 @@ interface ChatSession {
   }>;
 }
 
+/** Search results with pagination info */
 interface SearchResult {
   sessions: ChatSession[];
   total: number;
 }
 
+/** Search query parameters */
 interface SearchParams {
   q?: string | undefined;
   startDate?: string | undefined;
@@ -31,6 +57,16 @@ interface SearchParams {
   offset?: number | undefined;
 }
 
+// ============================================================================
+// API Functions
+// ============================================================================
+
+/**
+ * Search chat sessions with filters.
+ * 
+ * @param params - Search parameters (query, dates, pagination)
+ * @returns Search results with sessions and total count
+ */
 async function searchChatSessions(params: SearchParams): Promise<SearchResult> {
   const searchParams = new URLSearchParams();
   if (params.q) searchParams.set('q', params.q);
@@ -42,12 +78,23 @@ async function searchChatSessions(params: SearchParams): Promise<SearchResult> {
   return apiFetch<SearchResult>(`/api/chat/sessions/search?${searchParams.toString()}`);
 }
 
+/**
+ * Delete a single chat session.
+ * 
+ * @param sessionId - ID of session to delete
+ */
 async function deleteChatSession(sessionId: string): Promise<void> {
   await apiFetch(`/api/chat/sessions/${sessionId}`, {
     method: 'DELETE',
   });
 }
 
+/**
+ * Delete multiple chat sessions.
+ * 
+ * @param sessionIds - Array of session IDs to delete
+ * @returns Count of deleted sessions
+ */
 async function deleteChatSessions(sessionIds: string[]): Promise<{ deleted: number }> {
   return apiFetch<{ deleted: number }>('/api/chat/sessions', {
     method: 'DELETE',
@@ -55,6 +102,11 @@ async function deleteChatSessions(sessionIds: string[]): Promise<{ deleted: numb
   });
 }
 
+/**
+ * Delete all sessions for the current user.
+ * 
+ * @returns Count of deleted sessions
+ */
 async function deleteAllSessions(): Promise<{ deleted: number }> {
   return apiFetch<{ deleted: number }>('/api/chat/sessions', {
     method: 'DELETE',
@@ -62,17 +114,38 @@ async function deleteAllSessions(): Promise<{ deleted: number }> {
   });
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Chat history page with search, filtering, and bulk actions.
+ * 
+ * Features:
+ * - Full-text search across message content
+ * - Date range filtering (start/end dates)
+ * - Select all / individual selection
+ * - Bulk delete with confirmation
+ * - Delete all with confirmation
+ * - Localized date formatting
+ */
 function HistoryPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  
+  // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // Selection state
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
+  
+  // Dialog state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
 
-  // Get locale for date formatting
+  // Get locale for date formatting based on current language
   const dateLocale = i18n.language === 'vi' ? 'vi-VN' : i18n.language === 'ja' ? 'ja-JP' : 'en-US';
 
   const searchParams: SearchParams = {

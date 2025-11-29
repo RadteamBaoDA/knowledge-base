@@ -1,28 +1,72 @@
 /**
- * Service for persisting user preferences to IndexedDB
- * Scoped by userId to support multiple users on the same device
+ * @fileoverview User preferences service using IndexedDB.
+ * 
+ * Provides persistent storage for user-specific settings:
+ * - Uses IndexedDB for large data storage
+ * - Scoped by userId to support multiple users on same device
+ * - Async operations with error handling
+ * 
+ * Use cases:
+ * - Storing selected RAGFlow sources
+ * - Theme preferences
+ * - UI state persistence
+ * 
+ * @module services/userPreferences
  */
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** IndexedDB database name */
 const DB_NAME = 'kb-preferences';
+/** Database schema version */
 const DB_VERSION = 1;
+/** Object store name for user settings */
 const STORE_NAME = 'user_settings';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Stored user setting record.
+ */
 interface UserSetting {
+    /** User ID (for scoping) */
     userId: string;
+    /** Setting key */
     key: string;
+    /** Setting value (any serializable type) */
     value: any;
+    /** Last update timestamp */
     updatedAt: number;
 }
 
+// ============================================================================
+// Service Class
+// ============================================================================
+
+/**
+ * Service for persisting user preferences to IndexedDB.
+ * Settings are scoped by userId to support multiple users.
+ */
 class UserPreferencesService {
+    /** Cached database connection promise */
     private dbPromise: Promise<IDBDatabase> | null = null;
 
+    /**
+     * Get or create IndexedDB connection.
+     * Creates the database and object store on first access.
+     * @returns Promise resolving to database connection
+     */
     private async getDB(): Promise<IDBDatabase> {
         if (this.dbPromise) return this.dbPromise;
 
         this.dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
 
+            // Handle database upgrade (create schema)
             request.onupgradeneeded = (event) => {
                 const db = (event.target as IDBOpenDBRequest).result;
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -45,7 +89,12 @@ class UserPreferencesService {
     }
 
     /**
-     * Get a setting for a specific user
+     * Get a setting for a specific user.
+     * @template T - Expected value type
+     * @param userId - User ID for scoping
+     * @param key - Setting key
+     * @param defaultValue - Value to return if not found
+     * @returns Promise resolving to setting value or default
      */
     async get<T>(userId: string, key: string, defaultValue?: T): Promise<T | undefined> {
         try {
@@ -72,7 +121,10 @@ class UserPreferencesService {
     }
 
     /**
-     * Save a setting for a specific user
+     * Save a setting for a specific user.
+     * @param userId - User ID for scoping
+     * @param key - Setting key
+     * @param value - Value to store
      */
     async set(userId: string, key: string, value: any): Promise<void> {
         try {
@@ -102,4 +154,5 @@ class UserPreferencesService {
     }
 }
 
+/** Singleton instance of user preferences service */
 export const userPreferences = new UserPreferencesService();

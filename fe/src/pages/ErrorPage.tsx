@@ -1,15 +1,58 @@
+/**
+ * @fileoverview Generic error page component.
+ * 
+ * Displays error pages for HTTP status codes:
+ * - 403: Access Denied (Forbidden)
+ * - 404: Page Not Found
+ * - 500: Internal Server Error
+ * - 503: Service Unavailable
+ * 
+ * Provides navigation options to go back or go home.
+ * 
+ * @module pages/ErrorPage
+ */
+
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Ban, FileQuestion, ServerCrash, ArrowLeft } from 'lucide-react';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Props for ErrorPage component */
 interface ErrorPageProps {
+    /** HTTP status code for the error */
     code: 403 | 404 | 500 | 503;
+    /** Optional custom title (overrides default) */
     title?: string;
+    /** Optional custom message (overrides default) */
     message?: string;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Generic error page for displaying HTTP error status codes.
+ * 
+ * Features:
+ * - Icon and styling based on error type
+ * - Default titles and messages for each error code
+ * - Optional custom title and message overrides
+ * - Navigation buttons (back and home)
+ * 
+ * @param code - HTTP status code (403, 404, 500, 503)
+ * @param title - Optional custom title
+ * @param message - Optional custom message
+ */
 const ErrorPage = ({ code, title, message }: ErrorPageProps) => {
     const navigate = useNavigate();
 
+    /**
+     * Get error content configuration based on status code.
+     * Returns icon, title, and message for each error type.
+     */
     const getErrorContent = (code: number) => {
         switch (code) {
             case 403:

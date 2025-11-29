@@ -1,16 +1,59 @@
+/**
+ * @fileoverview Reusable modal dialog component.
+ * 
+ * Wraps Headless UI Dialog with consistent styling and animations.
+ * Provides a standard layout with header, body, and optional footer.
+ * Supports dark mode and multiple width presets.
+ * 
+ * @module components/Dialog
+ */
+
 import { Fragment, ReactNode } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Props for Dialog component */
 interface DialogProps {
+    /** Whether the dialog is open */
     open: boolean;
+    /** Callback when dialog should close */
     onClose: () => void;
+    /** Dialog title displayed in header */
     title: string;
+    /** Dialog body content */
     children: ReactNode;
+    /** Optional footer content (typically action buttons) */
     footer?: ReactNode;
+    /** Maximum width preset */
     maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Reusable modal dialog with consistent styling.
+ * 
+ * Features:
+ * - Backdrop overlay with animation
+ * - Centered dialog with scale animation
+ * - Header with title and close button
+ * - Body content area
+ * - Optional footer for action buttons
+ * - Dark mode support
+ * 
+ * @param open - Whether dialog is visible
+ * @param onClose - Close callback
+ * @param title - Header title
+ * @param children - Body content
+ * @param footer - Optional footer content
+ * @param maxWidth - Width preset (default: 'md')
+ */
 export function Dialog({
     open,
     onClose,
@@ -19,6 +62,7 @@ export function Dialog({
     footer,
     maxWidth = 'md'
 }: DialogProps) {
+    // Map width preset to Tailwind class
     const maxWidthClasses = {
         sm: 'max-w-sm',
         md: 'max-w-md',

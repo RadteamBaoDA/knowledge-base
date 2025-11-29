@@ -1,19 +1,44 @@
+/**
+ * @fileoverview Settings dialog component for user preferences.
+ * 
+ * Provides UI for configuring:
+ * - Language preference (with native names and flags)
+ * - Theme preference (light, dark, or system)
+ * 
+ * Uses Headless UI Dialog via the Dialog component wrapper.
+ * Settings are persisted via SettingsContext.
+ * 
+ * @module components/SettingsDialog
+ */
+
 import { useTranslation } from 'react-i18next';
 import { useSettings, SUPPORTED_LANGUAGES, Theme } from '../contexts/SettingsContext';
 import { LanguageCode } from '../i18n';
 import { Dialog } from './Dialog';
 import { RadioGroup } from './RadioGroup';
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Settings dialog for configuring language and theme.
+ * 
+ * Displays when isSettingsOpen is true in SettingsContext.
+ * Changes are applied immediately and persisted.
+ */
 function SettingsDialog() {
   const { t } = useTranslation();
   const { theme, setTheme, language, setLanguage, isSettingsOpen, closeSettings } = useSettings();
 
+  // Build language options from supported languages config
   const languageOptions = SUPPORTED_LANGUAGES.map(lang => ({
     value: lang.code,
     label: lang.nativeName,
     icon: lang.flag,
   }));
 
+  // Theme options with icons
   const themeOptions: { value: Theme; label: string; icon: string }[] = [
     { value: 'light', label: t('settings.themeLight'), icon: '☀️' },
     { value: 'dark', label: t('settings.themeDark'), icon: '🌙' },

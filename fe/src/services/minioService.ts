@@ -1,34 +1,82 @@
+/**
+ * @fileoverview MinIO storage service for bucket and file operations.
+ * 
+ * Provides API functions for interacting with MinIO object storage:
+ * - Bucket management (list, create, delete)
+ * - File operations (list, upload, download, delete)
+ * - Folder management
+ * 
+ * All operations require authentication and appropriate permissions.
+ * 
+ * @module services/minioService
+ */
+
+/** Backend API base URL */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-// ==================== Types ====================
+// ============================================================================
+// Types
+// ============================================================================
 
+/**
+ * MinIO bucket record from the database.
+ */
 export interface MinioBucket {
+    /** Unique bucket ID (UUID) */
     id: string;
+    /** MinIO bucket name (S3-compatible) */
     bucket_name: string;
+    /** Human-readable display name */
     display_name: string;
+    /** Optional description */
     description?: string;
+    /** User ID who created the bucket */
     created_by: string;
+    /** Creation timestamp (ISO string) */
     created_at: string;
+    /** Whether bucket is active */
     is_active: boolean;
 }
 
+/**
+ * File or folder object in MinIO.
+ */
 export interface FileObject {
+    /** Object name (file name or folder name) */
     name: string;
+    /** File size in bytes */
     size: number;
+    /** Last modified date */
     lastModified: Date;
+    /** Object ETag (hash) */
     etag: string;
+    /** Whether this is a folder */
     isFolder: boolean;
+    /** Full path prefix */
     prefix?: string;
 }
 
+/**
+ * Data for creating a new bucket.
+ */
 export interface CreateBucketDto {
+    /** MinIO bucket name (must follow S3 naming rules) */
     bucket_name: string;
+    /** Human-readable display name */
     display_name: string;
+    /** Optional description */
     description?: string;
 }
 
-// ==================== Bucket Operations ====================
+// ============================================================================
+// Bucket Operations
+// ============================================================================
 
+/**
+ * Fetch all configured buckets.
+ * @returns Array of bucket records
+ * @throws Error if fetch fails
+ */
 export const getBuckets = async (): Promise<MinioBucket[]> => {
     const response = await fetch(`${API_BASE_URL}/api/minio/buckets`, {
         credentials: 'include',
@@ -42,6 +90,12 @@ export const getBuckets = async (): Promise<MinioBucket[]> => {
     return data.buckets;
 };
 
+/**
+ * Create a new bucket.
+ * @param bucket - Bucket creation data
+ * @returns Created bucket record
+ * @throws Error if creation fails
+ */
 export const createBucket = async (bucket: CreateBucketDto): Promise<MinioBucket> => {
     const response = await fetch(`${API_BASE_URL}/api/minio/buckets`, {
         method: 'POST',
@@ -61,6 +115,11 @@ export const createBucket = async (bucket: CreateBucketDto): Promise<MinioBucket
     return data.bucket;
 };
 
+/**
+ * Delete a bucket by ID.
+ * @param bucketId - Bucket UUID to delete
+ * @throws Error if deletion fails
+ */
 export const deleteBucket = async (bucketId: string): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/api/minio/buckets/${bucketId}`, {
         method: 'DELETE',
@@ -73,8 +132,17 @@ export const deleteBucket = async (bucketId: string): Promise<void> => {
     }
 };
 
-// ==================== Storage Operations ====================
+// ============================================================================
+// Storage Operations
+// ============================================================================
 
+/**
+ * List objects in a bucket at the given prefix.
+ * @param bucketId - Bucket UUID
+ * @param prefix - Path prefix (folder path)
+ * @returns Array of file/folder objects
+ * @throws Error if listing fails
+ */
 export const listObjects = async (
     bucketId: string,
     prefix: string = ''
@@ -96,12 +164,24 @@ export const listObjects = async (
     return data.objects;
 };
 
+/**
+ * Upload files to a bucket.
+ * Uses XMLHttpRequest for progress tracking.
+ * 
+ * @param bucketId - Bucket UUID
+ * @param files - Array of File objects to upload
+ * @param prefix - Optional path prefix
+ * @param onProgress - Optional callback for upload progress (0-100)
+ * @returns Upload result from server
+ * @throws Error if upload fails
+ */
 export const uploadFiles = async (
     bucketId: string,
     files: File[],
     prefix: string = '',
     onProgress?: (progress: number) => void
 ): Promise<any> => {
+    // Build FormData with files
     const formData = new FormData();
     files.forEach((file) => {
         formData.append('files', file);
@@ -110,9 +190,11 @@ export const uploadFiles = async (
         formData.append('prefix', prefix);
     }
 
+    // Use XHR for progress tracking (fetch doesn't support upload progress)
     const xhr = new XMLHttpRequest();
 
     return new Promise((resolve, reject) => {
+        // Track upload progress
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable && onProgress) {
                 onProgress((e.loaded / e.total) * 100);
@@ -137,6 +219,13 @@ export const uploadFiles = async (
     });
 };
 
+/**
+ * Create a folder in a bucket.
+ * @param bucketId - Bucket UUID
+ * @param folderName - Folder name to create
+ * @param prefix - Parent folder prefix
+ * @throws Error if creation fails
+ */
 export const createFolder = async (
     bucketId: string,
     folderName: string,
@@ -160,6 +249,13 @@ export const createFolder = async (
     }
 };
 
+/**
+ * Delete a single file or folder.
+ * @param bucketId - Bucket UUID
+ * @param objectName - Full object path
+ * @param isFolder - Whether the object is a folder
+ * @throws Error if deletion fails
+ */
 export const deleteObject = async (
     bucketId: string,
     objectName: string,
@@ -183,6 +279,12 @@ export const deleteObject = async (
     }
 };
 
+/**
+ * Delete multiple files and/or folders.
+ * @param bucketId - Bucket UUID
+ * @param objects - Array of objects to delete with name and isFolder flag
+ * @throws Error if deletion fails
+ */
 export const batchDelete = async (
     bucketId: string,
     objects: Array<{ name: string; isFolder: boolean }>
@@ -202,6 +304,15 @@ export const batchDelete = async (
     }
 };
 
+/**
+ * Get a presigned download URL for a file.
+ * URL is valid for 1 hour.
+ * 
+ * @param bucketId - Bucket UUID
+ * @param objectPath - Full object path
+ * @returns Presigned download URL
+ * @throws Error if URL generation fails
+ */
 export const getDownloadUrl = async (bucketId: string, objectPath: string): Promise<string> => {
     const response = await fetch(
         `${API_BASE_URL}/api/minio/storage/${bucketId}/download/${objectPath}`,
