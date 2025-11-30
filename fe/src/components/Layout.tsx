@@ -245,7 +245,7 @@ function Layout() {
             />
           )}
         </header>
-        <div className={`flex-1 overflow-hidden ${['/ai-chat', '/ai-search', '/storage'].includes(location.pathname) ? '' : 'p-8 overflow-auto'}`}>
+        <div className={`flex-1 overflow-hidden ${['/ai-chat', '/ai-search', '/storage', '/system-tools'].includes(location.pathname) ? '' : 'p-8 overflow-auto'}`}>
           <Outlet />
         </div>
       </main>
