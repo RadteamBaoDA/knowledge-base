@@ -4,6 +4,7 @@
  * Admin-only page displaying a grid of system monitoring tools.
  * Tools are configured in system-tools.config.json on the backend.
  * Each tool opens in a new browser tab when clicked.
+ * All text is internationalized via i18next.
  * 
  * @module pages/SystemToolsPage
  */

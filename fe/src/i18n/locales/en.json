@@ -10,15 +10,22 @@
     "delete": "Delete",
     "settings": "Settings",
     "checkingSession": "Checking session...",
-    "signingOut": "Signing out..."
+    "signingOut": "Signing out...",
+    "goBack": "Go Back",
+    "goHome": "Go Home",
+    "retry": "Retry",
+    "username": "Username",
+    "password": "Password",
+    "login": "Login"
   },
   "nav": {
     "aiChat": "AI Chat",
     "aiSearch": "AI Search",
     "history": "History",
-    "documents": "Documents",
+    "documents": "Document",
     "userManagement": "User Management",
     "systemTools": "System Tools",
+    "storage": "Documents",
     "signOut": "Sign Out",
     "expandMenu": "Expand menu",
     "collapseMenu": "Collapse menu"
@@ -28,7 +35,9 @@
     "signInMicrosoft": "Sign in with Microsoft",
     "devUser": "Continue as Dev User",
     "signInPrompt": "Sign in to access the AI knowledge base",
-    "error": "Login failed"
+    "error": "Login failed",
+    "rootLogin": "Login as Root",
+    "rootLoginTitle": "Root Login"
   },
   "settings": {
     "title": "Settings",
@@ -66,7 +75,24 @@
   },
   "iframe": {
     "loadingChat": "Loading AI Chat...",
-    "loadingSearch": "Loading AI Search..."
+    "loadingSearch": "Loading AI Search...",
+    "checkingAvailability": "Checking service availability...",
+    "preparingContent": "Preparing content...",
+    "connectionFailed": "Connection Failed",
+    "connectionFailedDesc": "Unable to connect to the service. Please check your network connection and try again.",
+    "connectionTimeout": "Connection timeout. The service is taking too long to respond.",
+    "networkError": "Unable to connect to the service. Please check your network connection.",
+    "unexpectedError": "An unexpected error occurred while checking the service availability.",
+    "accessDenied": "Access Denied",
+    "accessDeniedDesc": "You do not have permission to access this resource. Please contact your administrator.",
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundDesc": "The requested page could not be found. The service may have been moved or is temporarily unavailable.",
+    "serverError": "Server Error",
+    "serverErrorDesc": "The service is experiencing technical difficulties. Please try again later.",
+    "errorLoading": "Error Loading Content",
+    "errorLoadingDesc": "An unexpected error occurred while loading the content. Please try again.",
+    "failedToLoad": "Failed to load the content. The service may be temporarily unavailable.",
+    "errorCode": "Error Code: {{code}}"
   },
   "pages": {
     "aiChat": {
@@ -80,6 +106,12 @@
     "history": {
       "title": "Chat History",
       "description": "View your past conversations"
+    },
+    "systemTools": {
+      "title": "System Monitoring Tools"
+    },
+    "storage": {
+      "title": "Knowledge Base Documents"
     }
   },
   "minio": {
@@ -162,5 +194,15 @@
     "toolsAvailable_plural": "{{count}} tools available",
     "configInfo": "Configuration can be updated in",
     "error": "Failed to load system tools"
+  },
+  "errorPage": {
+    "accessDenied": "Access Denied",
+    "accessDeniedMessage": "You don't have permission to access this page.",
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundMessage": "The page you are looking for doesn't exist or has been moved.",
+    "serviceUnavailable": "Service Unavailable",
+    "serviceUnavailableMessage": "The service is temporarily unavailable. Please try again later.",
+    "internalServerError": "Internal Server Error",
+    "internalServerErrorMessage": "Something went wrong on our end. Please try again later."
   }
 }

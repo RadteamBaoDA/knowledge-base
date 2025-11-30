@@ -1,5 +1,5 @@
 /**
- * @fileoverview RAGFlow iframe container component.
+ * @fileoverview RAGFlow iframe container component with i18n support.
  * 
  * Embeds RAGFlow AI Chat or AI Search interfaces in an iframe.
  * Handles:
@@ -8,6 +8,7 @@
  * - Custom error pages for different error types
  * - Locale appending to iframe URLs
  * - Iframe reload functionality
+ * - All error messages internationalized via i18next
  * 
  * @module components/RagflowIframe
  */
@@ -141,24 +142,24 @@ function RagflowIframe({ path }: RagflowIframeProps) {
       if (error.name === 'AbortError') {
         setIframeError({
           type: 'network',
-          message: 'Connection timeout. The service is taking too long to respond.',
+          message: t('iframe.connectionTimeout'),
         });
       } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
         setIframeError({
           type: 'network',
-          message: 'Unable to connect to the service. Please check your network connection.',
+          message: t('iframe.networkError'),
         });
       } else {
         setIframeError({
           type: 'unknown',
-          message: 'An unexpected error occurred while checking the service availability.',
+          message: t('iframe.unexpectedError'),
         });
       }
       setUrlChecked(true);
     } finally {
       setIsCheckingUrl(false);
     }
-  }, []);
+  }, [t]);
 
   /**
    * Effect: Check URL status when iframe source changes.
@@ -193,11 +194,11 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     if (!iframeError) {
       setIframeError({
         type: 'unknown',
-        message: 'Failed to load the content. The service may be temporarily unavailable.',
+        message: t('iframe.failedToLoad'),
       });
     }
     setIframeLoading(false);
-  }, [iframeSrc, iframeError]);
+  }, [iframeSrc, iframeError, t]);
 
   /**
    * Effect: Reset loading state when iframe source changes.
@@ -242,36 +243,36 @@ function RagflowIframe({ path }: RagflowIframeProps) {
     const errorConfigs = {
       network: {
         icon: WifiOff,
-        title: 'Connection Failed',
-        description: 'Unable to connect to the service. Please check your network connection and try again.',
+        title: t('iframe.connectionFailed'),
+        description: t('iframe.connectionFailedDesc'),
         color: 'text-orange-600 dark:text-orange-400',
         bgColor: 'bg-orange-50 dark:bg-orange-900/20',
       },
       forbidden: {
         icon: Lock,
-        title: 'Access Denied',
-        description: 'You do not have permission to access this resource. Please contact your administrator.',
+        title: t('iframe.accessDenied'),
+        description: t('iframe.accessDeniedDesc'),
         color: 'text-red-600 dark:text-red-400',
         bgColor: 'bg-red-50 dark:bg-red-900/20',
       },
       notfound: {
         icon: FileQuestion,
-        title: 'Page Not Found',
-        description: 'The requested page could not be found. The service may have been moved or is temporarily unavailable.',
+        title: t('iframe.pageNotFound'),
+        description: t('iframe.pageNotFoundDesc'),
         color: 'text-blue-600 dark:text-blue-400',
         bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       },
       server: {
         icon: ServerCrash,
-        title: 'Server Error',
-        description: 'The service is experiencing technical difficulties. Please try again later.',
+        title: t('iframe.serverError'),
+        description: t('iframe.serverErrorDesc'),
         color: 'text-purple-600 dark:text-purple-400',
         bgColor: 'bg-purple-50 dark:bg-purple-900/20',
       },
       unknown: {
         icon: AlertCircle,
-        title: 'Error Loading Content',
-        description: 'An unexpected error occurred while loading the content. Please try again.',
+        title: t('iframe.errorLoading'),
+        description: t('iframe.errorLoadingDesc'),
         color: 'text-slate-600 dark:text-slate-400',
         bgColor: 'bg-slate-50 dark:bg-slate-800',
       },
@@ -292,7 +293,7 @@ function RagflowIframe({ path }: RagflowIframeProps) {
           </p>
           {error.statusCode && (
             <p className="text-sm text-slate-500 dark:text-slate-500 mb-4">
-              Error Code: {error.statusCode}
+              {t('iframe.errorCode', { code: error.statusCode })}
             </p>
           )}
           <button
@@ -300,7 +301,7 @@ function RagflowIframe({ path }: RagflowIframeProps) {
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -332,7 +333,7 @@ function RagflowIframe({ path }: RagflowIframeProps) {
       <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-          <div className="text-slate-500 dark:text-slate-400">Checking service availability...</div>
+          <div className="text-slate-500 dark:text-slate-400">{t('iframe.checkingAvailability')}</div>
         </div>
       </div>
     );
@@ -349,7 +350,7 @@ function RagflowIframe({ path }: RagflowIframeProps) {
       <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-          <div className="text-slate-500 dark:text-slate-400">Preparing content...</div>
+          <div className="text-slate-500 dark:text-slate-400">{t('iframe.preparingContent')}</div>
         </div>
       </div>
     );

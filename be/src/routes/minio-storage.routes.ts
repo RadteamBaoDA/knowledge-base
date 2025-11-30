@@ -1,16 +1,16 @@
 /**
- * @fileoverview MinIO storage operations routes.
+ * @fileoverview MinIO storage operations routes for Knowledge Base Documents.
  * 
  * This module provides API endpoints for file and folder operations
  * within MinIO buckets. Supports listing, uploading, downloading,
- * and deleting objects.
+ * and deleting documents.
  * 
  * All routes require 'storage:write' permission (manager/admin roles).
  * 
  * Features:
  * - List files and folders in a bucket
  * - Upload files (multipart, up to 100MB)
- * - Create folders
+ * - Create folders for document organization
  * - Delete files and folders (single and batch)
  * - Generate presigned download URLs
  * 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview MinIO bucket management routes.
+ * @fileoverview MinIO bucket management routes for Knowledge Base Documents.
  * 
  * This module provides API endpoints for managing MinIO buckets.
  * Buckets are S3-compatible storage containers that can be created,
@@ -9,7 +9,7 @@
  * 
  * Features:
  * - Create new buckets (MinIO + database record)
- * - List configured buckets
+ * - List configured buckets for document storage
  * - Verify bucket existence in MinIO
  * - Delete buckets (removes from MinIO and database)
  * 

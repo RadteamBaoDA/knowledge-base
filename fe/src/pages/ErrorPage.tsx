@@ -1,5 +1,5 @@
 /**
- * @fileoverview Generic error page component.
+ * @fileoverview Generic error page component with i18n support.
  * 
  * Displays error pages for HTTP status codes:
  * - 403: Access Denied (Forbidden)
@@ -8,11 +8,13 @@
  * - 503: Service Unavailable
  * 
  * Provides navigation options to go back or go home.
+ * All text is internationalized via i18next.
  * 
  * @module pages/ErrorPage
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Ban, FileQuestion, ServerCrash, ArrowLeft } from 'lucide-react';
 
 // ============================================================================
@@ -48,6 +50,7 @@ interface ErrorPageProps {
  */
 const ErrorPage = ({ code, title, message }: ErrorPageProps) => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     /**
      * Get error content configuration based on status code.
@@ -58,27 +61,27 @@ const ErrorPage = ({ code, title, message }: ErrorPageProps) => {
             case 403:
                 return {
                     icon: <Ban className="w-24 h-24 text-red-500 mb-6" />,
-                    defaultTitle: 'Access Denied',
-                    defaultMessage: "You don't have permission to access this page.",
+                    defaultTitle: t('errorPage.accessDenied'),
+                    defaultMessage: t('errorPage.accessDeniedMessage'),
                 };
             case 404:
                 return {
                     icon: <FileQuestion className="w-24 h-24 text-blue-500 mb-6" />,
-                    defaultTitle: 'Page Not Found',
-                    defaultMessage: "The page you are looking for doesn't exist or has been moved.",
+                    defaultTitle: t('errorPage.pageNotFound'),
+                    defaultMessage: t('errorPage.pageNotFoundMessage'),
                 };
             case 503:
                 return {
                     icon: <ServerCrash className="w-24 h-24 text-orange-500 mb-6" />,
-                    defaultTitle: 'Service Unavailable',
-                    defaultMessage: 'The service is temporarily unavailable. Please try again later.',
+                    defaultTitle: t('errorPage.serviceUnavailable'),
+                    defaultMessage: t('errorPage.serviceUnavailableMessage'),
                 };
             case 500:
             default:
                 return {
                     icon: <AlertTriangle className="w-24 h-24 text-yellow-500 mb-6" />,
-                    defaultTitle: 'Internal Server Error',
-                    defaultMessage: 'Something went wrong on our end. Please try again later.',
+                    defaultTitle: t('errorPage.internalServerError'),
+                    defaultMessage: t('errorPage.internalServerErrorMessage'),
                 };
         }
     };
@@ -105,14 +108,14 @@ const ErrorPage = ({ code, title, message }: ErrorPageProps) => {
                     className="flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg transition-colors font-medium"
                 >
                     <ArrowLeft className="w-5 h-5" />
-                    Go Back
+                    {t('common.goBack')}
                 </button>
 
                 <button
                     onClick={() => navigate('/')}
                     className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium"
                 >
-                    Go Home
+                    {t('common.goHome')}
                 </button>
             </div>
         </div>
