@@ -1,48 +1,53 @@
+/**
+ * @fileoverview Initial database schema migration.
+ * 
+ * Creates the foundational tables for the Knowledge Base application:
+ * - users: User accounts and profile information
+ * - chat_sessions: Chat conversation containers
+ * - chat_messages: Individual messages within chat sessions
+ * 
+ * This migration handles both PostgreSQL and SQLite syntax differences.
+ * 
+ * @module db/migrations/001_initial_schema
+ */
+
 import { Migration } from './types.js';
 import { DatabaseAdapter } from '../types.js';
 import { log } from '../../services/logger.service.js';
 
+/**
+ * Initial schema migration.
+ * Creates users, chat_sessions, and chat_messages tables.
+ */
 export const migration: Migration = {
     name: '001_initial_schema',
+    
+    /**
+     * Apply migration: Create initial database tables.
+     * 
+     * Tables created:
+     * - users: Stores user accounts with email, display name, role, and permissions
+     * - chat_sessions: Groups chat messages into sessions with titles
+     * - chat_messages: Individual user/assistant messages with timestamps
+     * 
+     * All tables use TEXT for IDs (UUIDs) and include created_at/updated_at timestamps.
+     * Foreign key constraints ensure referential integrity.
+     */
     async up(db: DatabaseAdapter): Promise<void> {
         log.info('Running migration: 001_initial_schema');
 
-        // Create users table
-        // Note: We use raw SQL that is compatible with both SQLite and PostgreSQL where possible,
-        // or handle differences if needed. For these basic tables, standard SQL works well enough
-        // with the exception of specific types like DATETIME vs TIMESTAMP which our adapters might need to handle
-        // or we use text for SQLite compatibility if we want strictly shared SQL.
-        // However, since we are using raw queries passed to adapters, we might need to be careful.
-        // The previous implementation used adapter-specific SQL in initializeTables.
-        // To keep it simple and robust, we will use the same SQL that was working, but we need to know which DB we are running on
-        // OR use a syntax compatible with both.
-
-        // SQLite and Postgres have different syntax for timestamps and some types.
-        // Ideally we would inspect db type, but DatabaseAdapter doesn't expose it directly yet.
-        // For now, we'll use a generic approach or try to detect.
-        // Actually, the previous implementation had separate SQL for SQLite and Postgres.
-        // We should probably check the adapter type or use "safe" SQL.
-
-        // Let's check if we can execute generic SQL.
-        // SQLite: TEXT for everything usually works.
-        // Postgres: Needs specific types.
-
-        // Strategy: We will try to execute SQL that works for both, or check config.
-        // Since we don't have easy access to config here without importing it (which is fine),
-        // let's import config to check DB type if needed, OR just use "IF NOT EXISTS" which both support.
-
-        // Users Table
-        // SQLite uses TEXT for timestamps usually. Postgres uses TIMESTAMP WITH TIME ZONE.
-        // We can try to use a common ground or conditional logic.
-        // But wait, the previous SQLite adapter used `datetime('now')` and Postgres used `NOW()`.
-
-        // To solve this properly without over-engineering a query builder:
-        // We will define the queries for both and pick one based on the adapter class name or a property.
-        // Let's assume we can check `db.constructor.name`.
-
+        // Detect database type for syntax differences
+        // PostgreSQL uses TIMESTAMP WITH TIME ZONE and NOW()
+        // SQLite uses TEXT and datetime('now')
         const isPostgres = db.constructor.name === 'PostgreSQLAdapter';
 
         if (isPostgres) {
+            // ================================================================
+            // PostgreSQL Schema
+            // Uses TIMESTAMP WITH TIME ZONE for proper timezone handling
+            // ================================================================
+            
+            // Users table: Core user account information
             await db.query(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
@@ -55,6 +60,7 @@ export const migration: Migration = {
         )
       `);
 
+            // Chat sessions: Container for grouping related messages
             await db.query(`
         CREATE TABLE IF NOT EXISTS chat_sessions (
           id TEXT PRIMARY KEY,
@@ -66,6 +72,7 @@ export const migration: Migration = {
         )
       `);
 
+            // Chat messages: Individual messages within sessions
             await db.query(`
         CREATE TABLE IF NOT EXISTS chat_messages (
           id TEXT PRIMARY KEY,
@@ -77,8 +84,12 @@ export const migration: Migration = {
         )
       `);
         } else {
-            // SQLite
-            // Note: SQLiteAdapter.query uses db.exec/prepare.
+            // ================================================================
+            // SQLite Schema
+            // Uses TEXT for timestamps with datetime('now') default
+            // ================================================================
+            
+            // Users table: Core user account information
             await db.query(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
@@ -91,6 +102,7 @@ export const migration: Migration = {
         )
       `);
 
+            // Chat sessions: Container for grouping related messages
             await db.query(`
         CREATE TABLE IF NOT EXISTS chat_sessions (
           id TEXT PRIMARY KEY,
@@ -102,6 +114,7 @@ export const migration: Migration = {
         )
       `);
 
+            // Chat messages: Individual messages within sessions
             await db.query(`
         CREATE TABLE IF NOT EXISTS chat_messages (
           id TEXT PRIMARY KEY,
@@ -115,8 +128,13 @@ export const migration: Migration = {
         }
     },
 
+    /**
+     * Reverse migration: Drop all tables.
+     * Tables must be dropped in reverse order due to foreign key constraints.
+     */
     async down(db: DatabaseAdapter): Promise<void> {
         log.info('Reverting migration: 001_initial_schema');
+        // Drop in reverse order of dependencies
         await db.query('DROP TABLE IF EXISTS chat_messages');
         await db.query('DROP TABLE IF EXISTS chat_sessions');
         await db.query('DROP TABLE IF EXISTS users');

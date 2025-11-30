@@ -1,3 +1,19 @@
+/**
+ * @fileoverview Main application layout component with sidebar navigation.
+ * 
+ * Provides the overall app structure including:
+ * - Collapsible sidebar with navigation links
+ * - User profile display with avatar
+ * - Settings and logout actions
+ * - Main content area with header
+ * - RAGFlow source selection dropdowns
+ * 
+ * Uses feature flags from config to conditionally render navigation items.
+ * Supports both light and dark themes.
+ * 
+ * @module components/Layout
+ */
+
 import { useState } from 'react';
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,9 +35,24 @@ import {
   HardDrive
 } from 'lucide-react';
 
+// ============================================================================
+// Sub-components
+// ============================================================================
+
+/**
+ * User avatar component with image or initials fallback.
+ * 
+ * Displays user's avatar image if available, otherwise shows
+ * the first two initials of their display name.
+ * 
+ * @param user - User object containing avatar and displayName
+ * @param size - Avatar size: 'sm' (32px) or 'md' (40px)
+ */
 function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
+  // Size classes for avatar dimensions
   const sizeClasses = size === 'sm' ? 'w-8 h-8 text-sm' : 'w-10 h-10 text-base';
 
+  // Render image avatar if available
   if (user.avatar) {
     return (
       <img
@@ -32,6 +63,7 @@ function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
     );
   }
 
+  // Generate initials from display name (max 2 characters)
   const initials = user.displayName
     .split(' ')
     .map(n => n[0])
@@ -39,6 +71,7 @@ function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
     .toUpperCase()
     .slice(0, 2);
 
+  // Render fallback initials avatar
   return (
     <div className={`${sizeClasses} rounded-full bg-slate-600 dark:bg-slate-700 flex items-center justify-center text-white font-medium`}>
       {initials}
@@ -46,16 +79,39 @@ function UserAvatar({ user, size = 'md' }: { user: User; size?: 'sm' | 'md' }) {
   );
 }
 
+// ============================================================================
+// Main Layout Component
+// ============================================================================
+
+/**
+ * Main application layout with sidebar navigation and content area.
+ * 
+ * Features:
+ * - Collapsible sidebar with role-based navigation
+ * - Dynamic page titles based on current route
+ * - RAGFlow source selection dropdowns (when multiple sources available)
+ * - User profile section with settings and logout
+ * - Theme-aware styling (light/dark mode)
+ */
 function Layout() {
   const { t } = useTranslation();
   const location = useLocation();
+  
+  // State: Sidebar collapse toggle
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Get auth, settings, and RAGFlow context
   const { user } = useAuth();
   const { openSettings, resolvedTheme } = useSettings();
   const ragflow = useRagflow();
 
+  // Select logo based on current theme
   const logoSrc = resolvedTheme === 'dark' ? '/src/assets/logo-dark.png' : '/src/assets/logo.png';
 
+  /**
+   * Get page title based on current route.
+   * Falls back to app name for unknown routes.
+   */
   const getPageTitle = () => {
     switch (location.pathname) {
       case '/ai-chat':
@@ -73,6 +129,8 @@ function Layout() {
     }
   };
 
+  // Determine if source selection dropdowns should be shown
+  // Only show when multiple sources are configured
   const showChatDropdown = location.pathname === '/ai-chat' && ragflow.config?.chatSources && ragflow.config.chatSources.length > 1;
   const showSearchDropdown = location.pathname === '/ai-search' && ragflow.config?.searchSources && ragflow.config.searchSources.length > 1;
 

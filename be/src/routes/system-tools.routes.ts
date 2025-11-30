@@ -1,3 +1,15 @@
+/**
+ * @fileoverview System monitoring tools routes.
+ * 
+ * This module provides API endpoints for accessing system monitoring tools
+ * configured in system-tools.config.json. These are external services like
+ * Portainer, Grafana, Langfuse, etc. that admins can access.
+ * 
+ * All routes require admin role.
+ * 
+ * @module routes/system-tools
+ */
+
 import { Router, Request, Response } from 'express';
 import { systemToolsService } from '../services/system-tools.service.js';
 import { log } from '../services/logger.service.js';
@@ -5,12 +17,27 @@ import { requireRole } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// Require admin role for all system tools routes
+// ============================================================================
+// Middleware
+// ============================================================================
+
+/** Require admin role for all system tools routes */
 router.use(requireRole('admin'));
+
+// ============================================================================
+// Route Handlers
+// ============================================================================
 
 /**
  * GET /api/system-tools
- * Get all enabled system monitoring tools
+ * Get all enabled system monitoring tools.
+ * 
+ * Returns tools configured in system-tools.config.json that have
+ * enabled: true. Each tool includes name, icon, URL, and description.
+ * 
+ * @requires admin role
+ * @returns {Object} Tools array and count
+ * @returns {500} If configuration loading fails
  */
 router.get('/', (req: Request, res: Response) => {
     try {
@@ -32,7 +59,14 @@ router.get('/', (req: Request, res: Response) => {
 
 /**
  * POST /api/system-tools/reload
- * Reload system tools configuration (admin only)
+ * Reload system tools configuration from disk.
+ * 
+ * Hot-reloads the system-tools.config.json file without
+ * restarting the server. Useful for adding/modifying tools.
+ * 
+ * @requires admin role
+ * @returns {Object} Success message and new tool count
+ * @returns {500} If reload fails
  */
 router.post('/reload', (req: Request, res: Response) => {
     try {

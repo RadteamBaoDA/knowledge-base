@@ -1,25 +1,65 @@
+/**
+ * @fileoverview User management page for administrators.
+ * 
+ * Admin-only page for managing user roles:
+ * - View all registered users
+ * - Edit user roles (admin, manager, user)
+ * - Display user details (email, department, job title)
+ * 
+ * @module pages/UserManagementPage
+ */
+
 import { useState, useEffect } from 'react';
 import { useAuth, User } from '../hooks/useAuth';
 import { Dialog } from '../components/Dialog';
 import { Shield, Mail, Edit2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+/** API base URL from environment */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * User management page for administrators.
+ * 
+ * Features:
+ * - User list with avatar, name, email, department
+ * - Role badges (admin, manager, user) with color coding
+ * - Edit role dialog with role descriptions
+ * - Admin-only access (verified client-side)
+ */
 export default function UserManagementPage() {
     const { t } = useTranslation();
     const { user: currentUser } = useAuth();
+    
+    // State management
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    // Edit dialog state
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [newRole, setNewRole] = useState<'admin' | 'manager' | 'user'>('user');
 
+    // ============================================================================
+    // Effects & Data Fetching
+    // ============================================================================
+
+    /**
+     * Effect: Load users on component mount.
+     */
     useEffect(() => {
         fetchUsers();
     }, []);
 
+    /**
+     * Fetch all users from the API.
+     * Requires admin credentials (handled by backend).
+     */
     const fetchUsers = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -35,12 +75,22 @@ export default function UserManagementPage() {
         }
     };
 
+    // ============================================================================
+    // Handlers
+    // ============================================================================
+
+    /**
+     * Handle edit button click - open dialog with user's current role.
+     */
     const handleEditClick = (user: User) => {
         setSelectedUser(user);
         setNewRole(user.role);
         setIsEditModalOpen(true);
     };
 
+    /**
+     * Save role change via API and update local state.
+     */
     const handleSaveRole = async () => {
         if (!selectedUser) return;
 
@@ -54,11 +104,11 @@ export default function UserManagementPage() {
 
             if (!response.ok) throw new Error('Failed to update role');
 
+            // Update local state to reflect change
             setUsers(users.map(u => u.id === selectedUser.id ? { ...u, role: newRole } : u));
             setIsEditModalOpen(false);
         } catch (err) {
             console.error('Failed to update role:', err);
-            // Show error notification (could add toast here)
         }
     };
 

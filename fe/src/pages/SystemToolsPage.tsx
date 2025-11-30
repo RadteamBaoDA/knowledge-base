@@ -1,3 +1,13 @@
+/**
+ * @fileoverview System monitoring tools page for administrators.
+ * 
+ * Admin-only page displaying a grid of system monitoring tools.
+ * Tools are configured in system-tools.config.json on the backend.
+ * Each tool opens in a new browser tab when clicked.
+ * 
+ * @module pages/SystemToolsPage
+ */
+
 import { useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -5,13 +15,33 @@ import { getSystemTools, SystemTool } from '../services/systemToolsService';
 import SystemToolCard from '../components/SystemToolCard';
 import { useAuth } from '../hooks/useAuth';
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * System monitoring tools page.
+ * 
+ * Features:
+ * - Grid of clickable tool cards
+ * - Loading and error states
+ * - Retry functionality on error
+ * - Empty state when no tools configured
+ * - Admin info about configuration file location
+ */
 const SystemToolsPage = () => {
     const { t } = useTranslation();
     const { user } = useAuth();
+    
+    // State management
     const [tools, setTools] = useState<SystemTool[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    /**
+     * Fetch system tools from API.
+     * Handles loading state and error capture.
+     */
     const fetchTools = async () => {
         try {
             setLoading(true);
@@ -26,6 +56,9 @@ const SystemToolsPage = () => {
         }
     };
 
+    /**
+     * Effect: Load tools on component mount.
+     */
     useEffect(() => {
         fetchTools();
     }, []);

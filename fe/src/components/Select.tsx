@@ -1,21 +1,66 @@
+/**
+ * @fileoverview Custom select/dropdown component.
+ * 
+ * Wraps Headless UI Listbox with custom styling.
+ * Provides a styled dropdown with icon support and animations.
+ * Used for RAGFlow source selection in the layout header.
+ * 
+ * @module components/Select
+ */
+
 import { Fragment } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronDown, Check } from 'lucide-react';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Option item for the select dropdown */
 interface SelectOption {
+    /** Unique identifier for the option */
     id: string;
+    /** Display name for the option */
     name: string;
 }
 
+/** Props for Select component */
 interface SelectProps {
+    /** Currently selected option ID */
     value: string;
+    /** Callback when selection changes */
     onChange: (value: string) => void;
+    /** Array of available options */
     options: SelectOption[];
+    /** Optional icon to display before the selected value */
     icon?: React.ReactNode;
+    /** Additional CSS classes */
     className?: string;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Custom styled select/dropdown component.
+ * 
+ * Features:
+ * - Gradient background styling
+ * - Optional leading icon
+ * - Animated chevron indicator
+ * - Smooth dropdown transition
+ * - Checkmark on selected option
+ * - Dark mode support
+ * 
+ * @param value - Currently selected option ID
+ * @param onChange - Selection change callback
+ * @param options - Available options
+ * @param icon - Optional icon element
+ * @param className - Additional CSS classes
+ */
 export function Select({ value, onChange, options, icon, className = '' }: SelectProps) {
+    // Find the currently selected option for display
     const selectedOption = options.find(opt => opt.id === value);
 
     return (

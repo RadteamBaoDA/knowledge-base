@@ -1,3 +1,21 @@
+/**
+ * @fileoverview MinIO bucket management routes.
+ * 
+ * This module provides API endpoints for managing MinIO buckets.
+ * Buckets are S3-compatible storage containers that can be created,
+ * listed, verified, and deleted.
+ * 
+ * All routes require admin role.
+ * 
+ * Features:
+ * - Create new buckets (MinIO + database record)
+ * - List configured buckets
+ * - Verify bucket existence in MinIO
+ * - Delete buckets (removes from MinIO and database)
+ * 
+ * @module routes/minio-bucket
+ */
+
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { minioService } from '../services/minio.service.js';
@@ -8,17 +26,33 @@ import { MinioBucket, CreateMinioBucketDto } from '../models/minio-bucket.model.
 
 const router = Router();
 
-// All bucket management routes require admin role
+// ============================================================================
+// Middleware
+// ============================================================================
+
+/** All bucket management routes require admin role */
 router.use(requireRole('admin'));
+
+// ============================================================================
+// Route Handlers
+// ============================================================================
 
 /**
  * GET /api/minio/buckets
- * List all configured buckets from database
+ * List all configured buckets from database.
+ * 
+ * Returns active buckets ordered by creation date (newest first).
+ * Bucket info includes both MinIO name and display name.
+ * 
+ * @requires admin role
+ * @returns {Object} Buckets array and count
+ * @returns {500} If database query fails
  */
 router.get('/', async (req: Request, res: Response) => {
     try {
         log.debug('Fetching MinIO buckets', { user: req.session.user?.email });
 
+        // Query active buckets, sorted by creation date
         const buckets = await db.query<MinioBucket>(
             'SELECT * FROM minio_buckets WHERE is_active = 1 ORDER BY created_at DESC'
         );
@@ -37,7 +71,27 @@ router.get('/', async (req: Request, res: Response) => {
 
 /**
  * POST /api/minio/buckets
- * Create a new bucket in MinIO and save to database
+ * Create a new bucket in MinIO and save to database.
+ * 
+ * Bucket creation process:
+ * 1. Validate bucket name (S3 naming rules)
+ * 2. Check for existing bucket with same name
+ * 3. Create bucket in MinIO
+ * 4. Save bucket record to database
+ * 
+ * Bucket name rules:
+ * - 3-63 characters long
+ * - Lowercase letters, numbers, hyphens, and dots only
+ * - Must start and end with alphanumeric
+ * 
+ * @requires admin role
+ * @body {string} bucket_name - MinIO bucket name
+ * @body {string} display_name - Human-readable name
+ * @body {string} [description] - Optional description
+ * @returns {Object} Created bucket details
+ * @returns {400} If validation fails
+ * @returns {409} If bucket name already exists
+ * @returns {500} If MinIO or database operation fails
  */
 router.post('/', async (req: Request, res: Response) => {
     try {
@@ -122,7 +176,21 @@ router.post('/', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/minio/buckets/:id
- * Delete a bucket from MinIO and database
+ * Delete a bucket from MinIO and database.
+ * 
+ * Deletion process:
+ * 1. Retrieve bucket details from database
+ * 2. Attempt to delete from MinIO (continues if MinIO fails)
+ * 3. Remove record from database
+ * 
+ * Note: MinIO deletion may fail if bucket contains objects.
+ * Database record is removed regardless.
+ * 
+ * @requires admin role
+ * @param {string} id - Bucket ID (UUID)
+ * @returns {Object} Success message
+ * @returns {404} If bucket not found
+ * @returns {500} If database operation fails
  */
 router.delete('/:id', async (req: Request, res: Response) => {
     try {
@@ -174,7 +242,16 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
 /**
  * GET /api/minio/buckets/:id/verify
- * Verify if bucket exists in MinIO
+ * Verify if bucket exists in MinIO.
+ * 
+ * Checks if the configured bucket actually exists in MinIO.
+ * Useful for debugging sync issues between database and MinIO.
+ * 
+ * @requires admin role
+ * @param {string} id - Bucket ID (UUID)
+ * @returns {Object} Bucket name and existence status
+ * @returns {404} If bucket not found in database
+ * @returns {500} If MinIO check fails
  */
 router.get('/:id/verify', async (req: Request, res: Response) => {
     try {

@@ -1,7 +1,26 @@
+/**
+ * @fileoverview Legacy PostgreSQL-only migration script.
+ * 
+ * @deprecated This file is superseded by the new migration system in
+ * db/migrations/*.ts which supports both PostgreSQL and SQLite.
+ * 
+ * This script is kept for reference but should not be used.
+ * Use: npm run db:migrate -w be (which runs scripts/migrate.ts)
+ * 
+ * @module db/migrate
+ */
+
 import { getPool, closePool } from './index.js';
 
+/**
+ * Legacy migration definitions.
+ * These migrations create the initial chat schema for PostgreSQL only.
+ * 
+ * @deprecated Use db/migrations/001_initial_schema.ts instead
+ */
 const migrations = [
   {
+    /** Creates the chat_sessions table with user association and FTS index */
     name: '001_create_chat_sessions',
     up: `
       CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -18,6 +37,7 @@ const migrations = [
     `,
   },
   {
+    /** Creates the chat_messages table linked to sessions */
     name: '002_create_chat_messages',
     up: `
       CREATE TABLE IF NOT EXISTS chat_messages (
@@ -34,6 +54,7 @@ const migrations = [
     `,
   },
   {
+    /** Creates the migrations tracking table */
     name: '003_create_migrations_table',
     up: `
       CREATE TABLE IF NOT EXISTS migrations (
@@ -45,12 +66,18 @@ const migrations = [
   },
 ];
 
+/**
+ * Runs all pending migrations in sequence.
+ * Checks migration history to avoid re-running completed migrations.
+ * 
+ * @deprecated Use runMigrations from db/migrations/runner.js instead
+ */
 async function runMigrations(): Promise<void> {
   const pool = getPool();
   
   console.log('🔄 Running database migrations...');
   
-  // First, ensure migrations table exists
+  // Ensure migrations tracking table exists first
   await pool.query(`
     CREATE TABLE IF NOT EXISTS migrations (
       id SERIAL PRIMARY KEY,
@@ -59,18 +86,21 @@ async function runMigrations(): Promise<void> {
     );
   `);
   
+  // Process each migration
   for (const migration of migrations) {
-    // Check if migration has been executed
+    // Check if migration has already been executed
     const result = await pool.query(
       'SELECT name FROM migrations WHERE name = $1',
       [migration.name]
     );
     
     if (result.rows.length === 0) {
+      // Migration not yet run - execute it
       console.log(`  ⏳ Running migration: ${migration.name}`);
       
       try {
         await pool.query(migration.up);
+        // Record successful migration
         await pool.query(
           'INSERT INTO migrations (name) VALUES ($1)',
           [migration.name]
@@ -81,6 +111,7 @@ async function runMigrations(): Promise<void> {
         throw error;
       }
     } else {
+      // Migration already executed - skip
       console.log(`  ⏭️  Skipping: ${migration.name} (already executed)`);
     }
   }
@@ -88,7 +119,7 @@ async function runMigrations(): Promise<void> {
   console.log('✅ All migrations completed!');
 }
 
-// Run migrations if executed directly
+// Run migrations if executed directly (node db/migrate.js)
 runMigrations()
   .then(() => closePool())
   .then(() => process.exit(0))

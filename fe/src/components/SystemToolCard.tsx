@@ -1,16 +1,59 @@
+/**
+ * @fileoverview System tool card component for admin dashboard.
+ * 
+ * Displays a clickable card for a system monitoring tool.
+ * Opens the tool's URL in a new tab when clicked.
+ * Includes icon, name, and description.
+ * 
+ * @module components/SystemToolCard
+ */
+
 import { ExternalLink } from 'lucide-react';
 import { SystemTool } from '../services/systemToolsService';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Props for SystemToolCard component */
 interface SystemToolCardProps {
+    /** System tool data to display */
     tool: SystemTool;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Card component for displaying a system monitoring tool.
+ * 
+ * Features:
+ * - Displays tool icon with fallback handling
+ * - Shows tool name and description
+ * - Opens tool URL in new tab on click
+ * - External link indicator on hover
+ * - Hover animations and styling
+ * 
+ * @param tool - The system tool to display
+ */
 const SystemToolCard = ({ tool }: SystemToolCardProps) => {
+    /**
+     * Open tool URL in a new browser tab.
+     * Uses noopener,noreferrer for security.
+     */
     const handleClick = () => {
         window.open(tool.url, '_blank', 'noopener,noreferrer');
     };
 
+    /**
+     * Build full icon URL, handling backend-served static files.
+     * 
+     * @param iconPath - The icon path (may be relative to backend)
+     * @returns Full URL for the icon
+     */
     const getIconUrl = (iconPath: string) => {
+        // Handle backend static paths
         if (iconPath.startsWith('/static')) {
             const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
             return `${API_BASE_URL}${iconPath}`;

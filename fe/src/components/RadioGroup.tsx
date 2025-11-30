@@ -1,21 +1,67 @@
+/**
+ * @fileoverview Custom radio group component.
+ * 
+ * Wraps Headless UI RadioGroup with grid-based styling.
+ * Supports icons, descriptions, and configurable column layouts.
+ * Used for settings selection (language, theme).
+ * 
+ * @module components/RadioGroup
+ */
+
 import { RadioGroup as HeadlessRadioGroup } from '@headlessui/react';
 import { Check } from 'lucide-react';
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Option item for the radio group */
 interface RadioOption {
+    /** Unique value for the option */
     value: string;
+    /** Display label for the option */
     label: string;
+    /** Optional icon (emoji or React node) */
     icon?: string | React.ReactNode;
+    /** Optional description text */
     description?: string;
 }
 
+/** Props for RadioGroup component */
 interface RadioGroupProps {
+    /** Currently selected value */
     value: string;
+    /** Callback when selection changes */
     onChange: (value: string) => void;
+    /** Array of available options */
     options: RadioOption[];
+    /** Number of columns in the grid (1-4) */
     columns?: number;
+    /** Additional CSS classes */
     className?: string;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * Grid-based radio group with styled option cards.
+ * 
+ * Features:
+ * - Configurable grid columns (1-4)
+ * - Optional icon display
+ * - Optional description text
+ * - Selected state with check indicator
+ * - Primary color accent on selection
+ * - Dark mode support
+ * 
+ * @param value - Currently selected value
+ * @param onChange - Selection change callback
+ * @param options - Available options
+ * @param columns - Grid columns (default: 3)
+ * @param className - Additional CSS classes
+ */
 export function RadioGroup({
     value,
     onChange,
@@ -23,6 +69,7 @@ export function RadioGroup({
     columns = 3,
     className = ''
 }: RadioGroupProps) {
+    // Map column count to Tailwind grid class
     const gridCols = {
         1: 'grid-cols-1',
         2: 'grid-cols-2',

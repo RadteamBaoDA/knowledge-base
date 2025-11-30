@@ -1,27 +1,53 @@
+/**
+ * @fileoverview Add user details migration.
+ * 
+ * This migration adds additional profile fields to the users table
+ * that are synced from Azure AD user profiles:
+ * - department: User's organizational department
+ * - job_title: User's job title/position
+ * - mobile_phone: User's mobile phone number
+ * 
+ * These fields are nullable as they may not be available for all users.
+ * 
+ * @module db/migrations/003_add_user_details
+ */
+
 import { Migration } from './types.js';
 import { DatabaseAdapter } from '../types.js';
 import { log } from '../../services/logger.service.js';
 
+/**
+ * User details migration.
+ * Adds Azure AD profile fields to users table.
+ */
 export const migration: Migration = {
     name: '003_add_user_details',
+    
+    /**
+     * Apply migration: Add department, job_title, and mobile_phone columns.
+     * 
+     * Uses separate ALTER TABLE statements for cross-database compatibility.
+     * Each column is added in a try-catch to handle cases where it might
+     * already exist from a previous partial migration.
+     */
     async up(db: DatabaseAdapter): Promise<void> {
         log.info('Running migration: 003_add_user_details');
 
-        // Add department, job_title, and mobile_phone columns to users table
-        // We use separate ALTER TABLE statements for compatibility
-
+        // Add department column (user's organizational unit)
         try {
             await db.query('ALTER TABLE users ADD COLUMN department TEXT');
         } catch (e) {
             log.warn('Failed to add department column (might already exist)', { error: e });
         }
 
+        // Add job_title column (user's position/role in organization)
         try {
             await db.query('ALTER TABLE users ADD COLUMN job_title TEXT');
         } catch (e) {
             log.warn('Failed to add job_title column (might already exist)', { error: e });
         }
 
+        // Add mobile_phone column (user's contact number)
         try {
             await db.query('ALTER TABLE users ADD COLUMN mobile_phone TEXT');
         } catch (e) {
@@ -29,11 +55,14 @@ export const migration: Migration = {
         }
     },
 
+    /**
+     * Reverse migration: Remove user detail columns.
+     * 
+     * Note: SQLite versions before 3.35.0 don't support DROP COLUMN.
+     * This will fail silently on older SQLite versions.
+     */
     async down(db: DatabaseAdapter): Promise<void> {
         log.info('Reverting migration: 003_add_user_details');
-
-        // SQLite does not support DROP COLUMN in older versions, but we'll try standard SQL
-        // If it fails, we might need to recreate the table, but for now we'll assume it's supported or acceptable to leave
 
         try {
             await db.query('ALTER TABLE users DROP COLUMN department');

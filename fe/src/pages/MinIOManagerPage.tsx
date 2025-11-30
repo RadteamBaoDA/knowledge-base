@@ -1,3 +1,18 @@
+/**
+ * @fileoverview MinIO storage manager page.
+ * 
+ * File manager interface for MinIO object storage:
+ * - Browse buckets and files
+ * - Upload files with progress indicator
+ * - Download files
+ * - Delete files and folders (single and batch)
+ * - Navigate folder hierarchy
+ * 
+ * Available to admins and managers.
+ * 
+ * @module pages/MinIOManagerPage
+ */
+
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HardDrive, Trash2, Upload, Download, AlertCircle, RefreshCw, FolderPlus, Plus, X } from 'lucide-react';
@@ -16,13 +31,37 @@ import {
     getDownloadUrl
 } from '../services/minioService';
 
+// ============================================================================
+// Component
+// ============================================================================
+
+/**
+ * MinIO storage manager page component.
+ * 
+ * Features:
+ * - Bucket selection dropdown (rendered in header via portal)
+ * - File/folder listing with navigation
+ * - Multi-select with checkbox
+ * - Upload with progress indicator
+ * - Download and delete actions
+ * - Responsive table layout
+ * 
+ * Admin-only features:
+ * - Delete bucket
+ */
 const MinIOManagerPage = () => {
     const { user } = useAuth();
+    
+    // Bucket and object state
     const [buckets, setBuckets] = useState<MinioBucket[]>([]);
     const [selectedBucket, setSelectedBucket] = useState<string>('');
     const [objects, setObjects] = useState<FileObject[]>([]);
     const [currentPrefix, setCurrentPrefix] = useState('');
+    
+    // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    
+    // Loading and error state
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
