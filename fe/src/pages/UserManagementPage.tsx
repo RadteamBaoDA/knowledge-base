@@ -12,7 +12,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth, User } from '../hooks/useAuth';
 import { Dialog } from '../components/Dialog';
-import { Shield, Mail, Edit2 } from 'lucide-react';
+import { Mail, Edit2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /** API base URL from environment */
@@ -138,21 +138,11 @@ export default function UserManagementPage() {
     }
 
     return (
-        <div className="w-full">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-xl font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-primary-600" />
-                        {t('userManagement.title')}
-                    </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        {t('userManagement.description')}
-                    </p>
-                </div>
-
-                <div className="overflow-x-auto">
+        <div className="w-full h-full flex flex-col">
+            <div className="bg-white dark:bg-slate-800 flex-1 overflow-hidden flex flex-col">
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
-                        <thead>
+                        <thead className="sticky top-0 z-10">
                             <tr className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                                 <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">{t('userManagement.user')}</th>
                                 <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">{t('userManagement.email')}</th>
@@ -186,7 +176,9 @@ export default function UserManagementPage() {
                       ${user.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
                                                 user.role === 'manager' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
                                                     'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300'}`}>
-                                            {user.role}
+                                            {user.role === 'admin' ? t('userManagement.admin') : 
+                                             user.role === 'manager' ? t('userManagement.manager') : 
+                                             t('userManagement.userRole')}
                                         </span>
                                     </td>
                                     <td className="p-4 text-right">
@@ -268,7 +260,11 @@ export default function UserManagementPage() {
                                         className="sr-only"
                                     />
                                     <div className="flex-1">
-                                        <div className="font-medium text-slate-900 dark:text-white capitalize">{role}</div>
+                                        <div className="font-medium text-slate-900 dark:text-white capitalize">
+                                            {role === 'admin' ? t('userManagement.admin') : 
+                                             role === 'manager' ? t('userManagement.manager') : 
+                                             t('userManagement.userRole')}
+                                        </div>
                                         <div className="text-xs text-slate-500 dark:text-slate-400">
                                             {role === 'admin' ? t('userManagement.adminDescription') :
                                                 role === 'manager' ? t('userManagement.managerDescription') :

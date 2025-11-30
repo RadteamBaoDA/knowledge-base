@@ -121,9 +121,11 @@ function Layout() {
       case '/history':
         return t('pages.history.title');
       case '/system-tools':
-        return 'System Monitoring Tools';
+        return t('pages.systemTools.title');
       case '/storage':
-        return 'Knowledge Base Storage';
+        return t('pages.storage.title');
+      case '/user-management':
+        return t('userManagement.title');
       default:
         return t('common.appName');
     }
@@ -176,21 +178,21 @@ function Layout() {
             </NavLink>
           )}
           {user?.role === 'admin' && (
-            <NavLink to="/user-management" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="User Management">
+            <NavLink to="/user-management" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('nav.userManagement')}>
               <Users size={20} />
-              {!isCollapsed && <span>User Management</span>}
+              {!isCollapsed && <span>{t('nav.userManagement')}</span>}
             </NavLink>
           )}
           {user?.role === 'admin' && (
-            <NavLink to="/system-tools" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="System Tools">
+            <NavLink to="/system-tools" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('nav.systemTools')}>
               <Server size={20} />
-              {!isCollapsed && <span>System Tools</span>}
+              {!isCollapsed && <span>{t('nav.systemTools')}</span>}
             </NavLink>
           )}
           {(user?.role === 'admin' || user?.role === 'manager') && (
-            <NavLink to="/storage" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title="Storage">
+            <NavLink to="/storage" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`} title={t('nav.storage')}>
               <HardDrive size={20} />
-              {!isCollapsed && <span>Storage</span>}
+              {!isCollapsed && <span>{t('nav.storage')}</span>}
             </NavLink>
           )}
         </nav>

@@ -31,6 +31,8 @@
     "helmet": "^7.1.0",
     "http-proxy-middleware": "^3.0.2",
     "langfuse": "^3.27.0",
+    "minio": "^8.0.6",
+    "multer": "^2.0.2",
     "pg": "^8.13.1",
     "redis": "^5.10.0",
     "uuid": "^10.0.0",

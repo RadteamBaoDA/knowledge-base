@@ -134,10 +134,10 @@ function LoginPage() {
         window.location.href = redirect;
       } else {
         const data = await response.json();
-        setRootLoginError(data.error || 'Login failed');
+        setRootLoginError(data.error || t('login.error'));
       }
     } catch (err) {
-      setRootLoginError('An error occurred during login');
+      setRootLoginError(t('login.error'));
       console.error(err);
     }
   };
@@ -193,7 +193,7 @@ function LoginPage() {
               onClick={() => setIsRootLoginOpen(true)}
               className="w-full btn btn-secondary py-3 text-base"
             >
-              Login as Root
+              {t('login.rootLogin')}
             </button>
           )}
         </div>
@@ -206,20 +206,20 @@ function LoginPage() {
       <Dialog
         open={isRootLoginOpen}
         onClose={() => setIsRootLoginOpen(false)}
-        title="Root Login"
+        title={t('login.rootLoginTitle')}
         footer={
           <>
             <button
               onClick={() => setIsRootLoginOpen(false)}
               className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleRootLogin}
               className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors"
             >
-              Login
+              {t('common.login')}
             </button>
           </>
         }
@@ -232,7 +232,7 @@ function LoginPage() {
           )}
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Username
+              {t('common.username')}
             </label>
             <input
               type="text"
@@ -244,7 +244,7 @@ function LoginPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Password
+              {t('common.password')}
             </label>
             <input
               type="password"
