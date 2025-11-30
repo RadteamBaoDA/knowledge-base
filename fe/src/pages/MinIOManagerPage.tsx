@@ -14,7 +14,7 @@
  * @module pages/MinIOManagerPage
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { HardDrive, Trash2, Upload, Download, AlertCircle, RefreshCw, FolderPlus, Plus, X, ChevronDown, ChevronRight, Home, ArrowLeft, ArrowRight, Search } from 'lucide-react';
@@ -40,6 +40,25 @@ import {
 // ============================================================================
 
 const STORAGE_KEY_SELECTED_BUCKET = 'minio_selected_bucket';
+const ROW_HEIGHT = 52; // Height of each table row in pixels
+const OVERSCAN = 5; // Number of extra rows to render above/below viewport
+
+/**
+ * Format date with date before time for all locales
+ */
+const formatDateTime = (date: Date, locale: string): string => {
+    const dateStr = date.toLocaleDateString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const timeStr = date.toLocaleTimeString(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    return `${dateStr}, ${timeStr}`;
+};
 
 // ============================================================================
 // Component
@@ -61,7 +80,7 @@ const STORAGE_KEY_SELECTED_BUCKET = 'minio_selected_bucket';
  */
 const MinIOManagerPage = () => {
     const { user } = useAuth();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     
     // Bucket and object state
     const [buckets, setBuckets] = useState<MinioBucket[]>([]);
@@ -92,6 +111,11 @@ const MinIOManagerPage = () => {
     const uploadMenuRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    
+    // Virtual scroll state
+    const [scrollTop, setScrollTop] = useState(0);
+    const [containerHeight, setContainerHeight] = useState(0);
 
     // Handle bucket selection with localStorage persistence
     const handleBucketSelect = (bucketId: string) => {
@@ -139,6 +163,44 @@ const MinIOManagerPage = () => {
     const filteredObjects = searchQuery.trim()
         ? objects.filter(obj => obj.name.toLowerCase().includes(searchQuery.toLowerCase()))
         : objects;
+
+    // Virtual scroll calculations
+    const virtualScrollData = useMemo(() => {
+        const totalHeight = filteredObjects.length * ROW_HEIGHT;
+        const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+        const visibleCount = Math.ceil(containerHeight / ROW_HEIGHT) + (OVERSCAN * 2);
+        const endIndex = Math.min(filteredObjects.length, startIndex + visibleCount);
+        const offsetY = startIndex * ROW_HEIGHT;
+        const visibleItems = filteredObjects.slice(startIndex, endIndex);
+        
+        return { totalHeight, startIndex, endIndex, offsetY, visibleItems };
+    }, [filteredObjects, scrollTop, containerHeight]);
+
+    // Handle scroll event
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        setScrollTop(e.currentTarget.scrollTop);
+    }, []);
+
+    // Update container height on resize
+    useEffect(() => {
+        const updateHeight = () => {
+            if (tableContainerRef.current) {
+                setContainerHeight(tableContainerRef.current.clientHeight);
+            }
+        };
+        
+        updateHeight();
+        window.addEventListener('resize', updateHeight);
+        return () => window.removeEventListener('resize', updateHeight);
+    }, []);
+
+    // Reset scroll when changing folder or bucket
+    useEffect(() => {
+        setScrollTop(0);
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = 0;
+        }
+    }, [currentPrefix, selectedBucket]);
 
     // Clear search when changing prefix
     useEffect(() => {
@@ -355,6 +417,9 @@ const MinIOManagerPage = () => {
         name: b.display_name || b.bucket_name
     }));
 
+    // Get selected bucket info for description display
+    const selectedBucketInfo = buckets.find(b => b.id === selectedBucket);
+
     const headerActions = document.getElementById('header-actions');
 
     return (
@@ -399,34 +464,44 @@ const MinIOManagerPage = () => {
 
             {/* Breadcrumb Navigation */}
             {selectedBucket && (
-                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-1 text-sm overflow-x-auto">
-                    <button
-                        onClick={() => navigateTo('')}
-                        className="flex items-center gap-1 px-2 py-1 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
-                        title={t('minio.rootFolder')}
-                    >
-                        <Home className="w-4 h-4" />
-                        <span className="hidden sm:inline">{t('minio.root')}</span>
-                    </button>
-                    {currentPrefix && currentPrefix.split('/').filter(Boolean).map((folder, index, arr) => {
-                        const path = arr.slice(0, index + 1).join('/') + '/';
-                        const isLast = index === arr.length - 1;
-                        return (
-                            <div key={path} className="flex items-center gap-1">
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                                <button
-                                    onClick={() => !isLast && navigateTo(path)}
-                                    className={`px-2 py-1 rounded transition-colors ${
-                                        isLast
-                                            ? 'text-gray-900 dark:text-white font-medium bg-gray-100 dark:bg-gray-700'
-                                            : 'text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                                    }`}
-                                >
-                                    {folder}
-                                </button>
-                            </div>
-                        );
-                    })}
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-4">
+                    {/* Left: Breadcrumb */}
+                    <div className="flex items-center gap-1 text-sm overflow-x-auto flex-shrink-0">
+                        <button
+                            onClick={() => navigateTo('')}
+                            className="flex items-center gap-1 px-2 py-1 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
+                            title={t('minio.rootFolder')}
+                        >
+                            <Home className="w-4 h-4" />
+                            <span className="hidden sm:inline">{t('minio.root')}</span>
+                        </button>
+                        {currentPrefix && currentPrefix.split('/').filter(Boolean).map((folder, index, arr) => {
+                            const path = arr.slice(0, index + 1).join('/') + '/';
+                            const isLast = index === arr.length - 1;
+                            return (
+                                <div key={path} className="flex items-center gap-1">
+                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                    <button
+                                        onClick={() => !isLast && navigateTo(path)}
+                                        className={`px-2 py-1 rounded transition-colors ${
+                                            isLast
+                                                ? 'text-gray-900 dark:text-white font-medium bg-gray-100 dark:bg-gray-700'
+                                                : 'text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                                        }`}
+                                    >
+                                        {folder}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Right: Bucket description */}
+                    {selectedBucketInfo?.description && (
+                        <div className="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400 italic truncate max-w-md" title={selectedBucketInfo.description}>
+                            {selectedBucketInfo.description}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -557,123 +632,126 @@ const MinIOManagerPage = () => {
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="flex-1 overflow-auto bg-white dark:bg-gray-800">
-                <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-                        <tr>
-                            <th className="w-12 px-4 py-3">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                    disabled={!selectedBucket || filteredObjects.length === 0}
-                                    onChange={(e) => {
-                                        if (e.target.checked) {
-                                            setSelectedItems(new Set(filteredObjects.map(o => o.name)));
-                                        } else {
-                                            setSelectedItems(new Set());
-                                        }
-                                    }}
-                                    checked={filteredObjects.length > 0 && selectedItems.size === filteredObjects.length}
-                                />
-                            </th>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.name')}</th>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.size')}</th>
-                            <th className="text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.modified')}</th>
-                            <th className="text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {loading ? (
+            {/* Table with Virtual Scrolling */}
+            <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-800">
+                {/* Table Header - Fixed */}
+                <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                    <table className="w-full table-fixed">
+                        <thead>
                             <tr>
-                                <td colSpan={5} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <RefreshCw className="w-8 h-8 animate-spin text-primary-600" />
-                                        <span>{t('minio.loadingFiles')}</span>
-                                    </div>
-                                </td>
+                                <th className="w-10 px-3 py-3">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        disabled={!selectedBucket || filteredObjects.length === 0}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedItems(new Set(filteredObjects.map(o => o.name)));
+                                            } else {
+                                                setSelectedItems(new Set());
+                                            }
+                                        }}
+                                        checked={filteredObjects.length > 0 && selectedItems.size === filteredObjects.length}
+                                    />
+                                </th>
+                                <th className="text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.name')}</th>
+                                <th className="w-24 text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.size')}</th>
+                                <th className="w-52 text-left px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.modified')}</th>
+                                <th className="w-20 text-right px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">{t('minio.actions')}</th>
                             </tr>
-                        ) : !selectedBucket ? (
-                            <tr>
-                                <td colSpan={5} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <HardDrive className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                                        <span className="text-lg font-medium">{t('minio.noBucketSelected')}</span>
-                                        <span className="text-sm">{t('minio.selectBucketPrompt')}</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : objects.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <FolderPlus className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                                        <span className="text-lg font-medium">{t('minio.emptyBucket')}</span>
-                                        <span className="text-sm">{t('minio.uploadPrompt')}</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : filteredObjects.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Search className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                                        <span className="text-lg font-medium">{t('minio.noSearchResults')}</span>
-                                        <span className="text-sm">{t('minio.noSearchResultsHint')}</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredObjects.map((obj: FileObject) => (
-                                <tr key={obj.name} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                                    <td className="px-4 py-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedItems.has(obj.name)}
-                                            onChange={() => toggleSelection(obj.name)}
-                                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                        />
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <button
-                                            onClick={() => obj.isFolder && navigateToFolder(obj)}
-                                            className={`flex items-center gap-2 text-left ${obj.isFolder ? 'text-primary-600 hover:text-primary-700 font-medium' : 'text-gray-900 dark:text-white'}`}
+                        </thead>
+                    </table>
+                </div>
+                
+                {/* Scrollable Table Body */}
+                <div 
+                    ref={tableContainerRef}
+                    className="flex-1 overflow-auto"
+                    onScroll={handleScroll}
+                >
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                            <RefreshCw className="w-8 h-8 animate-spin text-primary-600" />
+                            <span className="mt-2">{t('minio.loadingFiles')}</span>
+                        </div>
+                    ) : !selectedBucket ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                            <HardDrive className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                            <span className="mt-2 text-lg font-medium">{t('minio.noBucketSelected')}</span>
+                            <span className="text-sm">{t('minio.selectBucketPrompt')}</span>
+                        </div>
+                    ) : objects.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                            <FolderPlus className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                            <span className="mt-2 text-lg font-medium">{t('minio.emptyBucket')}</span>
+                            <span className="text-sm">{t('minio.uploadPrompt')}</span>
+                        </div>
+                    ) : filteredObjects.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                            <Search className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                            <span className="mt-2 text-lg font-medium">{t('minio.noSearchResults')}</span>
+                            <span className="text-sm">{t('minio.noSearchResultsHint')}</span>
+                        </div>
+                    ) : (
+                        <div style={{ height: virtualScrollData.totalHeight, position: 'relative' }}>
+                            <table className="w-full table-fixed" style={{ position: 'absolute', top: virtualScrollData.offsetY }}>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    {virtualScrollData.visibleItems.map((obj: FileObject) => (
+                                        <tr 
+                                            key={obj.name} 
+                                            className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                                            style={{ height: ROW_HEIGHT }}
                                         >
-                                            {obj.isFolder ? <span className="text-xl">📁</span> : <span className="text-xl">📄</span>}
-                                            {obj.name}
-                                        </button>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                        {obj.isFolder ? '-' : `${(obj.size / 1024).toFixed(2)} KB`}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                        {new Date(obj.lastModified).toLocaleString()}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {!obj.isFolder && (
+                                            <td className="w-10 px-3 py-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedItems.has(obj.name)}
+                                                    onChange={() => toggleSelection(obj.name)}
+                                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                />
+                                            </td>
+                                            <td className="px-4 py-3">
                                                 <button
-                                                    onClick={() => handleDownload(obj)}
-                                                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:text-primary-600 transition-colors"
-                                                    title={t('minio.download')}
+                                                    onClick={() => obj.isFolder && navigateToFolder(obj)}
+                                                    className={`flex items-center gap-2 text-left truncate max-w-full ${obj.isFolder ? 'text-primary-600 hover:text-primary-700 font-medium' : 'text-gray-900 dark:text-white'}`}
                                                 >
-                                                    <Download className="w-4 h-4" />
+                                                    {obj.isFolder ? <span className="text-xl flex-shrink-0">📁</span> : <span className="text-xl flex-shrink-0">📄</span>}
+                                                    <span className="truncate">{obj.name}</span>
                                                 </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleDelete(obj)}
-                                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-400 hover:text-red-600 transition-colors"
-                                                title={t('common.delete')}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                            </td>
+                                            <td className="w-24 px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-right">
+                                                {obj.isFolder ? '-' : `${(obj.size / 1024 / 1024).toFixed(1)} MiB`}
+                                            </td>
+                                            <td className="w-52 px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                                {formatDateTime(new Date(obj.lastModified), i18n.language)}
+                                            </td>
+                                            <td className="w-20 px-4 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {!obj.isFolder && (
+                                                        <button
+                                                            onClick={() => handleDownload(obj)}
+                                                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 hover:text-primary-600 transition-colors"
+                                                            title={t('minio.download')}
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDelete(obj)}
+                                                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-400 hover:text-red-600 transition-colors"
+                                                        title={t('common.delete')}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {uploading && (

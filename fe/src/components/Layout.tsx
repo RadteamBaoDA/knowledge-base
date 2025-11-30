@@ -138,7 +138,7 @@ function Layout() {
   const showSearchDropdown = location.pathname === '/ai-search' && ragflow.config?.searchSources && ragflow.config.searchSources.length > 1;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <aside className={`${isCollapsed ? 'w-16' : 'w-64'} bg-sidebar-bg dark:bg-slate-950 text-sidebar-text flex flex-col transition-all duration-300`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} h-16 px-4 border-b border-white/10 ${resolvedTheme === 'dark' ? '' : 'bg-white'}`}>
           {!isCollapsed && (
@@ -221,7 +221,7 @@ function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900">
+      <main className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
         <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 h-16 flex justify-between items-center">
           <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">{getPageTitle()}</h1>
 
@@ -245,7 +245,7 @@ function Layout() {
             />
           )}
         </header>
-        <div className={`flex-1 ${['/ai-chat', '/ai-search', '/storage'].includes(location.pathname) ? '' : 'p-8'}`}>
+        <div className={`flex-1 overflow-hidden ${['/ai-chat', '/ai-search', '/storage'].includes(location.pathname) ? '' : 'p-8 overflow-auto'}`}>
           <Outlet />
         </div>
       </main>
