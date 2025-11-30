@@ -22,10 +22,10 @@
     "aiChat": "AI Chat",
     "aiSearch": "AI Search",
     "history": "History",
-    "documents": "Documents",
+    "documents": "Document",
     "userManagement": "User Management",
     "systemTools": "System Tools",
-    "storage": "Storage",
+    "storage": "Documents",
     "signOut": "Sign Out",
     "expandMenu": "Expand menu",
     "collapseMenu": "Collapse menu"
@@ -111,7 +111,7 @@
       "title": "System Monitoring Tools"
     },
     "storage": {
-      "title": "Knowledge Base Storage"
+      "title": "Knowledge Base Documents"
     }
   },
   "minio": {

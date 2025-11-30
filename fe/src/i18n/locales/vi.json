@@ -25,7 +25,7 @@
     "documents": "Tài liệu",
     "userManagement": "Quản lý Người dùng",
     "systemTools": "Công cụ Hệ thống",
-    "storage": "Lưu trữ",
+    "storage": "Kho Tài liệu",
     "signOut": "Đăng xuất",
     "expandMenu": "Mở rộng menu",
     "collapseMenu": "Thu gọn menu"
@@ -111,7 +111,7 @@
       "title": "Công cụ Giám sát Hệ thống"
     },
     "storage": {
-      "title": "Lưu trữ Kho Kiến Thức"
+      "title": "Tài liệu Kho Kiến Thức"
     }
   },
   "minio": {

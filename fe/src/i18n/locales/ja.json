@@ -25,7 +25,7 @@
     "documents": "ドキュメント",
     "userManagement": "ユーザー管理",
     "systemTools": "システムツール",
-    "storage": "ストレージ",
+    "storage": "ドキュメント",
     "signOut": "サインアウト",
     "expandMenu": "メニューを展開",
     "collapseMenu": "メニューを折りたたむ"
@@ -111,7 +111,7 @@
       "title": "システム監視ツール"
     },
     "storage": {
-      "title": "ナレッジベースストレージ"
+      "title": "ナレッジベースドキュメント"
     }
   },
   "minio": {
