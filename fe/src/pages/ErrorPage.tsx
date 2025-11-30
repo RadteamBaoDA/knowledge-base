@@ -1,5 +1,5 @@
 /**
- * @fileoverview Generic error page component.
+ * @fileoverview Generic error page component with i18n support.
  * 
  * Displays error pages for HTTP status codes:
  * - 403: Access Denied (Forbidden)
@@ -8,6 +8,7 @@
  * - 503: Service Unavailable
  * 
  * Provides navigation options to go back or go home.
+ * All text is internationalized via i18next.
  * 
  * @module pages/ErrorPage
  */

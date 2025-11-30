@@ -2,9 +2,12 @@
  * @fileoverview User management page for administrators.
  * 
  * Admin-only page for managing user roles:
- * - View all registered users
+ * - View all registered users in a data table
  * - Edit user roles (admin, manager, user)
  * - Display user details (email, department, job title)
+ * - Full i18n support for all text
+ * 
+ * Page title is displayed in the Layout header.
  * 
  * @module pages/UserManagementPage
  */

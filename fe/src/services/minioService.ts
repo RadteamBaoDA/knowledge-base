@@ -1,12 +1,13 @@
 /**
- * @fileoverview MinIO storage service for bucket and file operations.
+ * @fileoverview MinIO storage service for Knowledge Base document operations.
  * 
  * Provides API functions for interacting with MinIO object storage:
  * - Bucket management (list, create, delete)
  * - File operations (list, upload, download, delete)
- * - Folder management
+ * - Folder management and batch operations
  * 
  * All operations require authentication and appropriate permissions.
+ * Used by the Knowledge Base Documents page (MinIOManagerPage).
  * 
  * @module services/minioService
  */

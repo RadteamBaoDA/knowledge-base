@@ -1,12 +1,12 @@
 /**
- * @fileoverview MinIO storage manager page.
+ * @fileoverview Knowledge Base Documents page (MinIO storage manager).
  * 
- * File manager interface for MinIO object storage:
- * - Browse buckets and files
+ * File manager interface for document storage using MinIO:
+ * - Browse document buckets and files
  * - Upload files with progress indicator
  * - Download files
  * - Delete files and folders (single and batch)
- * - Navigate folder hierarchy
+ * - Navigate folder hierarchy with i18n support
  * 
  * Available to admins and managers.
  * 

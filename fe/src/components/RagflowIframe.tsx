@@ -1,5 +1,5 @@
 /**
- * @fileoverview RAGFlow iframe container component.
+ * @fileoverview RAGFlow iframe container component with i18n support.
  * 
  * Embeds RAGFlow AI Chat or AI Search interfaces in an iframe.
  * Handles:
@@ -8,6 +8,7 @@
  * - Custom error pages for different error types
  * - Locale appending to iframe URLs
  * - Iframe reload functionality
+ * - All error messages internationalized via i18next
  * 
  * @module components/RagflowIframe
  */

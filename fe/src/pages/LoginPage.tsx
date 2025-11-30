@@ -3,9 +3,10 @@
  * 
  * Provides authentication UI with:
  * - Microsoft/Azure AD sign-in button
- * - Optional root login for development/emergency access
+ * - Optional root login dialog for development/emergency access
  * - Redirect handling for post-login navigation
  * - Error message display from OAuth flow
+ * - Full i18n support for all text
  * 
  * @module pages/LoginPage
  */

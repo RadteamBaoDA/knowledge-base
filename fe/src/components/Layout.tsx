@@ -5,8 +5,9 @@
  * - Collapsible sidebar with navigation links
  * - User profile display with avatar
  * - Settings and logout actions
- * - Main content area with header
+ * - Main content area with header and dynamic page titles
  * - RAGFlow source selection dropdowns
+ * - Full i18n support for navigation and page titles
  * 
  * Uses feature flags from config to conditionally render navigation items.
  * Supports both light and dark themes.

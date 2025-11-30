@@ -1,11 +1,12 @@
 /**
- * @fileoverview Chat history page component.
+ * @fileoverview Chat history page component with i18n support.
  * 
  * Displays user's chat session history with:
  * - Full-text search across messages
  * - Date range filtering
  * - Bulk selection and deletion
  * - Individual session deletion
+ * - All text internationalized via i18next
  * 
  * Uses React Query for data fetching and mutations.
  * 
