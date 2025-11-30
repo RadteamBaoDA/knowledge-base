@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth, User } from '../hooks/useAuth';
 import { Dialog } from '../components/Dialog';
 import { Shield, Mail, Edit2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function UserManagementPage() {
+    const { t } = useTranslation();
     const { user: currentUser } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +29,7 @@ export default function UserManagementPage() {
             const data = await response.json();
             setUsers(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load users');
+            setError(err instanceof Error ? err.message : t('userManagement.error'));
         } finally {
             setIsLoading(false);
         }
@@ -80,7 +82,7 @@ export default function UserManagementPage() {
     if (currentUser?.role !== 'admin') {
         return (
             <div className="text-center text-slate-600 dark:text-slate-400 p-8">
-                You do not have permission to view this page.
+                {t('userManagement.noPermission')}
             </div>
         );
     }
@@ -91,10 +93,10 @@ export default function UserManagementPage() {
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                     <h2 className="text-xl font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                         <Shield className="w-5 h-5 text-primary-600" />
-                        User Management
+                        {t('userManagement.title')}
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Manage user roles and permissions
+                        {t('userManagement.description')}
                     </p>
                 </div>
 
@@ -102,11 +104,11 @@ export default function UserManagementPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
-                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">User</th>
-                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">Email</th>
-                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">Department</th>
-                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">Role</th>
-                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400 text-right">Actions</th>
+                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">{t('userManagement.user')}</th>
+                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">{t('userManagement.email')}</th>
+                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">{t('userManagement.department')}</th>
+                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400">{t('userManagement.role')}</th>
+                                <th className="p-4 text-sm font-medium text-slate-500 dark:text-slate-400 text-right">{t('userManagement.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -141,7 +143,7 @@ export default function UserManagementPage() {
                                         <button
                                             onClick={() => handleEditClick(user)}
                                             className="p-2 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-                                            title="Edit Role"
+                                            title={t('userManagement.editRole')}
                                         >
                                             <Edit2 className="w-4 h-4" />
                                         </button>
@@ -156,20 +158,20 @@ export default function UserManagementPage() {
             <Dialog
                 open={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
-                title="Edit User Role"
+                title={t('userManagement.editUserRole')}
                 footer={
                     <>
                         <button
                             onClick={() => setIsEditModalOpen(false)}
                             className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             onClick={handleSaveRole}
                             className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-lg transition-colors"
                         >
-                            Save Changes
+                            {t('userManagement.saveChanges')}
                         </button>
                     </>
                 }
@@ -196,7 +198,7 @@ export default function UserManagementPage() {
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Role
+                            {t('userManagement.role')}
                         </label>
                         <div className="grid grid-cols-1 gap-2">
                             {['admin', 'manager', 'user'].map((role) => (
@@ -218,9 +220,9 @@ export default function UserManagementPage() {
                                     <div className="flex-1">
                                         <div className="font-medium text-slate-900 dark:text-white capitalize">{role}</div>
                                         <div className="text-xs text-slate-500 dark:text-slate-400">
-                                            {role === 'admin' ? 'Full access to all features and settings' :
-                                                role === 'manager' ? 'Can manage content and view reports' :
-                                                    'Standard access to chat and search'}
+                                            {role === 'admin' ? t('userManagement.adminDescription') :
+                                                role === 'manager' ? t('userManagement.managerDescription') :
+                                                    t('userManagement.userDescription')}
                                         </div>
                                     </div>
                                     {newRole === role && (

@@ -66,7 +66,7 @@ router.post('/', async (req: Request, res: Response) => {
 
         // Check if bucket already exists in database
         const existing = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE bucket_name = ?',
+            'SELECT * FROM minio_buckets WHERE bucket_name = $1',
             [bucket_name]
         );
 
@@ -75,30 +75,30 @@ router.post('/', async (req: Request, res: Response) => {
             return;
         }
 
-        // Create bucket in MinIO
-        try {
-            await minioService.createBucket(bucket_name);
-        } catch (minioError) {
-            log.error('MinIO bucket creation failed', {
-                bucketName: bucket_name,
-                error: minioError instanceof Error ? minioError.message : String(minioError),
-            });
-            res.status(500).json({
-                error: 'Failed to create bucket in MinIO',
-                details: minioError instanceof Error ? minioError.message : undefined,
-            });
-            return;
-        }
+        // Create bucket in MinIO - SKIPPED as per requirement
+        // try {
+        //     await minioService.createBucket(bucket_name);
+        // } catch (minioError) {
+        //     log.error('MinIO bucket creation failed', {
+        //         bucketName: bucket_name,
+        //         error: minioError instanceof Error ? minioError.message : String(minioError),
+        //     });
+        //     res.status(500).json({
+        //         error: 'Failed to create bucket in MinIO',
+        //         details: minioError instanceof Error ? minioError.message : undefined,
+        //     });
+        //     return;
+        // }
 
         // Save to database
         const bucketId = uuidv4();
         await db.query(
-            'INSERT INTO minio_buckets (id, bucket_name, display_name, description, created_by, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+            'INSERT INTO minio_buckets (id, bucket_name, display_name, description, created_by, is_active) VALUES ($1, $2, $3, $4, $5, 1)',
             [bucketId, bucket_name, display_name, description || null, userId]
         );
 
         const newBucket = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ?',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [bucketId]
         );
 
@@ -130,7 +130,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
         // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ?',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [id]
         );
 
@@ -139,21 +139,21 @@ router.delete('/:id', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
 
-        // Try to delete from MinIO
-        try {
-            await minioService.deleteBucket(bucket.bucket_name);
-        } catch (minioError) {
-            log.warn('MinIO bucket deletion failed (might already be deleted)', {
-                bucketName: bucket.bucket_name,
-                error: minioError instanceof Error ? minioError.message : String(minioError),
-            });
-            // Continue to remove from database even if MinIO deletion fails
-        }
+        // Try to delete from MinIO - SKIPPED as per requirement
+        // try {
+        //     await minioService.deleteBucket(bucket.bucket_name);
+        // } catch (minioError) {
+        //     log.warn('MinIO bucket deletion failed (might already be deleted)', {
+        //         bucketName: bucket.bucket_name,
+        //         error: minioError instanceof Error ? minioError.message : String(minioError),
+        //     });
+        //     // Continue to remove from database even if MinIO deletion fails
+        // }
 
         // Remove from database
-        await db.query('DELETE FROM minio_buckets WHERE id = ?', [id]);
+        await db.query('DELETE FROM minio_buckets WHERE id = $1', [id]);
 
         log.info('MinIO bucket deleted', {
             bucketId: id,
@@ -181,7 +181,7 @@ router.get('/:id/verify', async (req: Request, res: Response) => {
         const { id } = req.params;
 
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ?',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [id]
         );
 
@@ -190,7 +190,7 @@ router.get('/:id/verify', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
         const exists = await minioService.bucketExists(bucket.bucket_name);
 
         res.json({

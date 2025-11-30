@@ -30,7 +30,7 @@ router.get('/:bucketId/list', async (req: Request, res: Response) => {
 
         // Get bucket details
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
+            'SELECT * FROM minio_buckets WHERE id = $1 AND is_active = 1',
             [bucketId]
         );
 
@@ -39,7 +39,7 @@ router.get('/:bucketId/list', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
 
         // List objects
         const objects = await minioService.listObjects(
@@ -70,11 +70,11 @@ router.get('/:bucketId/list', async (req: Request, res: Response) => {
  * POST /api/minio/storage/:bucketId/upload
  * Upload files to a bucket
  */
-router.post('/:bucketId/upload', upload.array('files', 20), async (req: Request, res: Response) => {
+router.post('/:bucketId/upload', upload.any(), async (req: Request, res: Response) => {
     try {
         const { bucketId } = req.params;
-        const { prefix = '' } = req.body;
-        const files = req.files as Express.Multer.File[];
+        const { prefix = '', preserveFolderStructure, filePaths } = req.body;
+        const files = (req.files as Express.Multer.File[]) || [];
 
         if (!files || files.length === 0) {
             res.status(400).json({ error: 'No files uploaded' });
@@ -83,7 +83,7 @@ router.post('/:bucketId/upload', upload.array('files', 20), async (req: Request,
 
         // Get bucket details
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [bucketId]
         );
 
@@ -92,12 +92,27 @@ router.post('/:bucketId/upload', upload.array('files', 20), async (req: Request,
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
+
+        // Parse filePaths if it exists (could be a string or array)
+        let filePathsArray: string[] = [];
+        if (preserveFolderStructure === 'true' && filePaths) {
+            filePathsArray = Array.isArray(filePaths) ? filePaths : [filePaths];
+        }
 
         // Upload files
         const uploadResults = await Promise.allSettled(
-            files.map(async (file) => {
-                const objectName = prefix ? `${prefix}${file.originalname}` : file.originalname;
+            files.map(async (file, index) => {
+                let objectName: string;
+
+                if (preserveFolderStructure === 'true' && filePathsArray[index]) {
+                    // Use the relative path from the folder structure
+                    objectName = prefix ? `${prefix}${filePathsArray[index]}` : filePathsArray[index];
+                } else {
+                    // Use just the filename
+                    objectName = prefix ? `${prefix}${file.originalname}` : file.originalname;
+                }
+
                 return minioService.uploadFile(
                     bucket.bucket_name,
                     objectName,
@@ -117,6 +132,7 @@ router.post('/:bucketId/upload', upload.array('files', 20), async (req: Request,
             bucketId,
             successful,
             failed,
+            preserveFolderStructure: preserveFolderStructure === 'true',
             user: req.session.user?.email,
         });
 
@@ -159,7 +175,7 @@ router.post('/:bucketId/folder', async (req: Request, res: Response) => {
 
         // Get bucket details
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [bucketId]
         );
 
@@ -168,7 +184,7 @@ router.post('/:bucketId/folder', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
 
         // Create folder path
         const folderPath = prefix ? `${prefix}${folder_name}` : folder_name;
@@ -209,7 +225,7 @@ router.delete('/:bucketId/delete', async (req: Request, res: Response) => {
 
         // Get bucket details
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [bucketId]
         );
 
@@ -218,7 +234,7 @@ router.delete('/:bucketId/delete', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
 
         if (is_folder) {
             await minioService.deleteFolder(bucket.bucket_name, object_name);
@@ -260,7 +276,7 @@ router.post('/:bucketId/batch-delete', async (req: Request, res: Response) => {
 
         // Get bucket details
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [bucketId]
         );
 
@@ -269,7 +285,7 @@ router.post('/:bucketId/batch-delete', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
 
         // Separate files and folders
         const files = objects.filter((obj) => !obj.isFolder).map((obj) => obj.name);
@@ -323,7 +339,7 @@ router.get('/:bucketId/download/*', async (req: Request, res: Response) => {
 
         // Get bucket details
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = ? AND is_active = 1',
+            'SELECT * FROM minio_buckets WHERE id = $1',
             [bucketId]
         );
 
@@ -332,7 +348,7 @@ router.get('/:bucketId/download/*', async (req: Request, res: Response) => {
             return;
         }
 
-        const bucket = buckets[0];
+        const bucket = buckets[0]!;
 
         // Generate presigned URL (valid for 1 hour)
         const downloadUrl = await minioService.getDownloadUrl(bucket.bucket_name, objectPath, 3600);

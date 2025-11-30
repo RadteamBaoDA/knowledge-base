@@ -20,7 +20,7 @@ const SystemToolsPage = () => {
             setTools(data);
         } catch (err) {
             console.error('Failed to fetch system tools:', err);
-            setError(err instanceof Error ? err.message : 'Failed to load system tools');
+            setError(err instanceof Error ? err.message : t('systemTools.error'));
         } finally {
             setLoading(false);
         }
@@ -35,7 +35,7 @@ const SystemToolsPage = () => {
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-                    <p className="text-gray-600 dark:text-gray-400">Loading system tools...</p>
+                    <p className="text-gray-600 dark:text-gray-400">{t('systemTools.loading')}</p>
                 </div>
             </div>
         );
@@ -48,7 +48,7 @@ const SystemToolsPage = () => {
                     <AlertCircle className="w-12 h-12 text-red-500" />
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            Failed to Load Tools
+                            {t('systemTools.failedToLoad')}
                         </h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
                         <button
@@ -56,7 +56,7 @@ const SystemToolsPage = () => {
                             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
                         >
                             <RefreshCw className="w-4 h-4" />
-                            Retry
+                            {t('systemTools.retry')}
                         </button>
                     </div>
                 </div>
@@ -71,11 +71,11 @@ const SystemToolsPage = () => {
                 <div className="flex items-center gap-3 mb-2">
                     <Server className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        System Monitoring Tools
+                        {t('systemTools.title')}
                     </h1>
                 </div>
                 <p className="text-gray-600 dark:text-gray-400">
-                    Quick access to system monitoring and management tools. Click on any tool to open it in a new tab.
+                    {t('systemTools.description')}
                 </p>
             </div>
 
@@ -84,10 +84,10 @@ const SystemToolsPage = () => {
                 <div className="flex flex-col items-center justify-center min-h-[300px] border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
                     <Server className="w-16 h-16 text-gray-400 dark:text-gray-600 mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        No Tools Configured
+                        {t('systemTools.noToolsConfigured')}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
-                        No system monitoring tools have been configured yet. Contact your administrator to add tools.
+                        {t('systemTools.noToolsDescription')}
                     </p>
                 </div>
             ) : (
@@ -102,10 +102,10 @@ const SystemToolsPage = () => {
             {tools.length > 0 && (
                 <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                        {tools.length} tool{tools.length !== 1 ? 's' : ''} available
+                        {t('systemTools.toolsAvailable', { count: tools.length })}
                         {user?.role === 'admin' && (
                             <span className="ml-2">
-                                · Configuration can be updated in <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">system-tools.config.json</code>
+                                · {t('systemTools.configInfo')} <code className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">system-tools.config.json</code>
                             </span>
                         )}
                     </p>

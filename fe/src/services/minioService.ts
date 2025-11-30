@@ -100,14 +100,25 @@ export const uploadFiles = async (
     bucketId: string,
     files: File[],
     prefix: string = '',
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    preserveFolderStructure: boolean = false
 ): Promise<any> => {
     const formData = new FormData();
+
     files.forEach((file) => {
         formData.append('files', file);
+        // If preserving folder structure, send the relative path
+        if (preserveFolderStructure && (file as any).webkitRelativePath) {
+            formData.append('filePaths', (file as any).webkitRelativePath);
+        }
     });
+
     if (prefix) {
         formData.append('prefix', prefix);
+    }
+
+    if (preserveFolderStructure) {
+        formData.append('preserveFolderStructure', 'true');
     }
 
     const xhr = new XMLHttpRequest();

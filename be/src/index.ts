@@ -54,13 +54,42 @@ if (config.sessionStore.type === 'redis') {
   redisClient.on('reconnecting', () => {
     log.warn('Redis client reconnecting');
   });
+
+  // Initialize store immediately with the client
+  sessionStore = new RedisStore({
+    client: redisClient,
+    prefix: 'kb:sess:',
+    ttl: config.session.ttlSeconds,
+  });
 } else {
   log.info('Session store: MemoryStore (in-memory sessions)');
 }
 
 // CORS configuration - must be before other middleware
+const rootDomain = config.sharedStorageDomain.startsWith('.')
+  ? config.sharedStorageDomain.substring(1)
+  : config.sharedStorageDomain;
+
 app.use(cors({
-  origin: config.frontendUrl,
+  origin: (requestOrigin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!requestOrigin) return callback(null, true);
+
+    // Check if exact match with frontendUrl
+    if (requestOrigin === config.frontendUrl) return callback(null, true);
+
+    // Check if same root domain
+    try {
+      const originUrl = new URL(requestOrigin);
+      if (originUrl.hostname === rootDomain || originUrl.hostname.endsWith('.' + rootDomain)) {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // Invalid URL, ignore
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
@@ -99,7 +128,7 @@ app.use(helmet({
       fontSrc: ["'self'", "data:", "*"],
       connectSrc: ["'self'", "*"],
       frameSrc: ["'self'", "*"],
-      frameAncestors: ["'self'", config.frontendUrl],
+      frameAncestors: ["'self'", config.frontendUrl, `http://*.${rootDomain}`, `https://*.${rootDomain}`, "http://*", "https://*"],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -134,20 +163,16 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // Start server (HTTP or HTTPS based on config)
 const startServer = async (): Promise<http.Server | https.Server> => {
   // Connect to Redis if configured
+  // Connect to Redis if configured
   if (config.sessionStore.type === 'redis' && redisClient) {
     try {
       await redisClient.connect();
-      sessionStore = new RedisStore({
-        client: redisClient,
-        prefix: 'kb:sess:',
-        ttl: config.session.ttlSeconds,
-      });
       log.info('Session store: Redis', { url: config.redis.url.replace(/:[^:@]*@/, ':***@') });
     } catch (err) {
-      log.warn('Failed to connect to Redis, falling back to MemoryStore', {
+      log.warn('Failed to connect to Redis', {
         error: err instanceof Error ? err.message : String(err),
       });
-      // sessionStore remains undefined, will use MemoryStore
+      // Note: If Redis fails, session middleware might fail or hang depending on connect-redis behavior
     }
   }
 
