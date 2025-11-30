@@ -1,17 +1,18 @@
 /**
  * @fileoverview MinIO bucket management routes for Knowledge Base Documents.
  * 
- * This module provides API endpoints for managing MinIO buckets.
- * Buckets are S3-compatible storage containers that can be created,
- * listed, verified, and deleted.
+ * This module provides API endpoints for managing MinIO bucket metadata.
+ * Bucket configurations are stored in database - actual MinIO buckets are not
+ * created or deleted. This allows admins to configure which existing MinIO
+ * buckets are accessible through the application.
  * 
  * All routes require admin role.
  * 
  * Features:
- * - Create new buckets (MinIO + database record)
- * - List configured buckets for document storage
+ * - Add bucket configuration to database (link existing MinIO bucket)
+ * - List configured buckets from database
  * - Verify bucket existence in MinIO
- * - Delete buckets (removes from MinIO and database)
+ * - Remove bucket configuration from database
  * 
  * @module routes/minio-bucket
  */
@@ -41,8 +42,7 @@ router.use(requireRole('admin'));
  * GET /api/minio/buckets
  * List all configured buckets from database.
  * 
- * Returns active buckets ordered by creation date (newest first).
- * Bucket info includes both MinIO name and display name.
+ * Returns active bucket configurations with display names.
  * 
  * @requires admin role
  * @returns {Object} Buckets array and count
@@ -50,9 +50,9 @@ router.use(requireRole('admin'));
  */
 router.get('/', async (req: Request, res: Response) => {
     try {
-        log.debug('Fetching MinIO buckets', { user: req.session.user?.email });
+        log.debug('Fetching configured MinIO buckets', { user: req.session.user?.email });
 
-        // Query active buckets, sorted by creation date
+        // Query active buckets from database
         const buckets = await db.query<MinioBucket>(
             'SELECT * FROM minio_buckets WHERE is_active = 1 ORDER BY created_at DESC'
         );
@@ -71,27 +71,25 @@ router.get('/', async (req: Request, res: Response) => {
 
 /**
  * POST /api/minio/buckets
- * Create a new bucket in MinIO and save to database.
+ * Add a bucket configuration to database.
  * 
- * Bucket creation process:
+ * This does NOT create the bucket in MinIO - it only adds metadata
+ * to link an existing MinIO bucket to the application.
+ * 
+ * Bucket configuration process:
  * 1. Validate bucket name (S3 naming rules)
- * 2. Check for existing bucket with same name
- * 3. Create bucket in MinIO
- * 4. Save bucket record to database
- * 
- * Bucket name rules:
- * - 3-63 characters long
- * - Lowercase letters, numbers, hyphens, and dots only
- * - Must start and end with alphanumeric
+ * 2. Check if bucket exists in MinIO (must exist)
+ * 3. Check if bucket is already configured in database
+ * 4. Save bucket configuration to database
  * 
  * @requires admin role
- * @body {string} bucket_name - MinIO bucket name
- * @body {string} display_name - Human-readable name
+ * @body {string} bucket_name - MinIO bucket name (must exist in MinIO)
+ * @body {string} display_name - Human-readable display name
  * @body {string} [description] - Optional description
- * @returns {Object} Created bucket details
- * @returns {400} If validation fails
- * @returns {409} If bucket name already exists
- * @returns {500} If MinIO or database operation fails
+ * @returns {Object} Created bucket configuration
+ * @returns {400} If validation fails or bucket doesn't exist in MinIO
+ * @returns {409} If bucket is already configured
+ * @returns {500} If database operation fails
  */
 router.post('/', async (req: Request, res: Response) => {
     try {
@@ -118,33 +116,25 @@ router.post('/', async (req: Request, res: Response) => {
             return;
         }
 
-        // Check if bucket already exists in database
+        // Check if bucket exists in MinIO (it must exist)
+        const existsInMinio = await minioService.bucketExists(bucket_name);
+        if (!existsInMinio) {
+            res.status(400).json({ error: 'Bucket does not exist in MinIO. Please create it in MinIO first.' });
+            return;
+        }
+
+        // Check if bucket is already configured in database
         const existing = await db.query<MinioBucket>(
             'SELECT * FROM minio_buckets WHERE bucket_name = $1',
             [bucket_name]
         );
 
         if (existing.length > 0) {
-            res.status(409).json({ error: 'Bucket name already configured' });
+            res.status(409).json({ error: 'Bucket is already configured' });
             return;
         }
 
-        // Create bucket in MinIO - SKIPPED as per requirement
-        // try {
-        //     await minioService.createBucket(bucket_name);
-        // } catch (minioError) {
-        //     log.error('MinIO bucket creation failed', {
-        //         bucketName: bucket_name,
-        //         error: minioError instanceof Error ? minioError.message : String(minioError),
-        //     });
-        //     res.status(500).json({
-        //         error: 'Failed to create bucket in MinIO',
-        //         details: minioError instanceof Error ? minioError.message : undefined,
-        //     });
-        //     return;
-        // }
-
-        // Save to database
+        // Save bucket configuration to database
         const bucketId = uuidv4();
         await db.query(
             'INSERT INTO minio_buckets (id, bucket_name, display_name, description, created_by, is_active) VALUES ($1, $2, $3, $4, $5, 1)',
@@ -156,35 +146,30 @@ router.post('/', async (req: Request, res: Response) => {
             [bucketId]
         );
 
-        log.info('MinIO bucket created', {
+        log.info('MinIO bucket configured', {
             bucketId,
             bucketName: bucket_name,
             user: req.session.user?.email,
         });
 
         res.status(201).json({
-            message: 'Bucket created successfully',
+            message: 'Bucket configured successfully',
             bucket: newBucket[0],
         });
     } catch (error) {
-        log.error('Failed to create MinIO bucket', {
+        log.error('Failed to configure MinIO bucket', {
             error: error instanceof Error ? error.message : String(error),
         });
-        res.status(500).json({ error: 'Failed to create bucket' });
+        res.status(500).json({ error: 'Failed to configure bucket' });
     }
 });
 
 /**
  * DELETE /api/minio/buckets/:id
- * Delete a bucket from MinIO and database.
+ * Remove a bucket configuration from database.
  * 
- * Deletion process:
- * 1. Retrieve bucket details from database
- * 2. Attempt to delete from MinIO (continues if MinIO fails)
- * 3. Remove record from database
- * 
- * Note: MinIO deletion may fail if bucket contains objects.
- * Database record is removed regardless.
+ * This does NOT delete the bucket from MinIO - it only removes
+ * the metadata configuration from the database.
  * 
  * @requires admin role
  * @param {string} id - Bucket ID (UUID)
@@ -203,40 +188,29 @@ router.delete('/:id', async (req: Request, res: Response) => {
         );
 
         if (buckets.length === 0) {
-            res.status(404).json({ error: 'Bucket not found' });
+            res.status(404).json({ error: 'Bucket configuration not found' });
             return;
         }
 
         const bucket = buckets[0]!;
 
-        // Try to delete from MinIO - SKIPPED as per requirement
-        // try {
-        //     await minioService.deleteBucket(bucket.bucket_name);
-        // } catch (minioError) {
-        //     log.warn('MinIO bucket deletion failed (might already be deleted)', {
-        //         bucketName: bucket.bucket_name,
-        //         error: minioError instanceof Error ? minioError.message : String(minioError),
-        //     });
-        //     // Continue to remove from database even if MinIO deletion fails
-        // }
-
-        // Remove from database
+        // Remove from database (soft delete or hard delete)
         await db.query('DELETE FROM minio_buckets WHERE id = $1', [id]);
 
-        log.info('MinIO bucket deleted', {
+        log.info('MinIO bucket configuration removed', {
             bucketId: id,
             bucketName: bucket.bucket_name,
             user: req.session.user?.email,
         });
 
         res.json({
-            message: 'Bucket deleted successfully',
+            message: 'Bucket configuration removed successfully',
         });
     } catch (error) {
-        log.error('Failed to delete MinIO bucket', {
+        log.error('Failed to remove MinIO bucket configuration', {
             error: error instanceof Error ? error.message : String(error),
         });
-        res.status(500).json({ error: 'Failed to delete bucket' });
+        res.status(500).json({ error: 'Failed to remove bucket configuration' });
     }
 });
 
@@ -263,7 +237,7 @@ router.get('/:id/verify', async (req: Request, res: Response) => {
         );
 
         if (buckets.length === 0) {
-            res.status(404).json({ error: 'Bucket not found' });
+            res.status(404).json({ error: 'Bucket configuration not found' });
             return;
         }
 
@@ -279,6 +253,48 @@ router.get('/:id/verify', async (req: Request, res: Response) => {
             error: error instanceof Error ? error.message : String(error),
         });
         res.status(500).json({ error: 'Failed to verify bucket' });
+    }
+});
+
+/**
+ * GET /api/minio/buckets/available
+ * List all buckets from MinIO that are not yet configured.
+ * 
+ * Returns buckets that exist in MinIO but are not in the database.
+ * Helps admins discover which buckets can be added.
+ * 
+ * @requires admin role
+ * @returns {Object} Available buckets array
+ * @returns {500} If MinIO query fails
+ */
+router.get('/available/list', async (req: Request, res: Response) => {
+    try {
+        // Get all buckets from MinIO
+        const minioBuckets = await minioService.listBuckets();
+
+        // Get all configured bucket names from database
+        const configuredBuckets = await db.query<MinioBucket>(
+            'SELECT bucket_name FROM minio_buckets WHERE is_active = 1'
+        );
+        const configuredNames = new Set(configuredBuckets.map(b => b.bucket_name));
+
+        // Filter to only unconfigured buckets
+        const availableBuckets = minioBuckets
+            .filter(b => !configuredNames.has(b.name))
+            .map(b => ({
+                name: b.name,
+                creationDate: b.creationDate,
+            }));
+
+        res.json({
+            buckets: availableBuckets,
+            count: availableBuckets.length,
+        });
+    } catch (error) {
+        log.error('Failed to list available buckets', {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).json({ error: 'Failed to list available buckets' });
     }
 });
 

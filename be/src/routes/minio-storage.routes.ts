@@ -2,13 +2,13 @@
  * @fileoverview MinIO storage operations routes for Knowledge Base Documents.
  * 
  * This module provides API endpoints for file and folder operations
- * within MinIO buckets. Supports listing, uploading, downloading,
- * and deleting documents.
+ * within MinIO buckets. Bucket metadata is stored in database, but all
+ * file operations are performed directly against MinIO in realtime.
  * 
  * All routes require 'storage:write' permission (manager/admin roles).
  * 
  * Features:
- * - List files and folders in a bucket
+ * - List files and folders in a bucket (realtime from MinIO)
  * - Upload files (multipart, up to 100MB)
  * - Create folders for document organization
  * - Delete files and folders (single and batch)
@@ -55,7 +55,7 @@ router.use(requirePermission('storage:write'));
 
 /**
  * GET /api/minio/storage/:bucketId/list
- * List files and folders in a bucket.
+ * List files and folders in a bucket directly from MinIO.
  * 
  * Returns objects at the specified prefix level (non-recursive).
  * Use prefix query parameter to navigate into folders.
@@ -85,7 +85,7 @@ router.get('/:bucketId/list', async (req: Request, res: Response) => {
 
         const bucket = buckets[0]!;
 
-        // List objects
+        // List objects directly from MinIO
         const objects = await minioService.listObjects(
             bucket.bucket_name,
             prefix as string,
@@ -137,9 +137,9 @@ router.post('/:bucketId/upload', upload.any(), async (req: Request, res: Respons
             return;
         }
 
-        // Get bucket details
+        // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = $1',
+            'SELECT * FROM minio_buckets WHERE id = $1 AND is_active = 1',
             [bucketId]
         );
 
@@ -186,6 +186,7 @@ router.post('/:bucketId/upload', upload.any(), async (req: Request, res: Respons
 
         log.info('Files uploaded', {
             bucketId,
+            bucketName: bucket.bucket_name,
             successful,
             failed,
             preserveFolderStructure: preserveFolderStructure === 'true',
@@ -241,9 +242,9 @@ router.post('/:bucketId/folder', async (req: Request, res: Response) => {
             return;
         }
 
-        // Get bucket details
+        // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = $1',
+            'SELECT * FROM minio_buckets WHERE id = $1 AND is_active = 1',
             [bucketId]
         );
 
@@ -261,6 +262,7 @@ router.post('/:bucketId/folder', async (req: Request, res: Response) => {
 
         log.info('Folder created', {
             bucketId,
+            bucketName: bucket.bucket_name,
             folderPath,
             user: req.session.user?.email,
         });
@@ -303,9 +305,9 @@ router.delete('/:bucketId/delete', async (req: Request, res: Response) => {
             return;
         }
 
-        // Get bucket details
+        // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = $1',
+            'SELECT * FROM minio_buckets WHERE id = $1 AND is_active = 1',
             [bucketId]
         );
 
@@ -324,6 +326,7 @@ router.delete('/:bucketId/delete', async (req: Request, res: Response) => {
 
         log.info('Object deleted', {
             bucketId,
+            bucketName: bucket.bucket_name,
             objectName: object_name,
             isFolder: is_folder,
             user: req.session.user?.email,
@@ -365,9 +368,9 @@ router.post('/:bucketId/batch-delete', async (req: Request, res: Response) => {
             return;
         }
 
-        // Get bucket details
+        // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = $1',
+            'SELECT * FROM minio_buckets WHERE id = $1 AND is_active = 1',
             [bucketId]
         );
 
@@ -396,6 +399,7 @@ router.post('/:bucketId/batch-delete', async (req: Request, res: Response) => {
 
         log.info('Batch delete completed', {
             bucketId,
+            bucketName: bucket.bucket_name,
             filesDeleted: files.length,
             foldersDeleted: folders.length,
             user: req.session.user?.email,
@@ -439,9 +443,9 @@ router.get('/:bucketId/download/*', async (req: Request, res: Response) => {
             return;
         }
 
-        // Get bucket details
+        // Get bucket details from database
         const buckets = await db.query<MinioBucket>(
-            'SELECT * FROM minio_buckets WHERE id = $1',
+            'SELECT * FROM minio_buckets WHERE id = $1 AND is_active = 1',
             [bucketId]
         );
 

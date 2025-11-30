@@ -261,18 +261,34 @@ class MinioService {
         const folders = new Set<string>();  // Track folders to avoid duplicates
 
         try {
-            // Stream objects from MinIO
-            const stream = client.listObjects(bucketName, prefix, recursive);
+            // Stream objects from MinIO using listObjectsV2 with delimiter for proper folder listing
+            const stream = client.listObjectsV2(bucketName, prefix, recursive, '');
 
             for await (const obj of stream) {
-                if (obj.name) {
+                // Handle folder prefixes (virtual directories)
+                if (obj.prefix) {
+                    const folderName = obj.prefix.slice(prefix.length).replace(/\/$/, '');
+                    if (folderName && !folders.has(folderName)) {
+                        folders.add(folderName);
+                        objects.push({
+                            name: folderName,
+                            size: 0,
+                            lastModified: new Date(),
+                            etag: '',
+                            isFolder: true,
+                            prefix: obj.prefix,
+                        });
+                    }
+                }
+                // Handle regular objects (files and folder markers)
+                else if (obj.name) {
                     // Check if this is a folder marker (ends with /)
                     if (obj.name.endsWith('/')) {
-                        const folderName = obj.name.slice(prefix.length);
+                        const folderName = obj.name.slice(prefix.length).replace(/\/$/, '');
                         if (folderName && !folders.has(folderName)) {
                             folders.add(folderName);
                             objects.push({
-                                name: folderName.replace(/\/$/, ''),  // Remove trailing slash
+                                name: folderName,
                                 size: 0,
                                 lastModified: obj.lastModified || new Date(),
                                 etag: obj.etag || '',
@@ -290,9 +306,9 @@ class MinioService {
                             if (parts.length > 1) {
                                 // This file is in a subfolder - add folder entry instead
                                 const folderName = parts[0];
-                                const folderPath = prefix + folderName + '/';
-                                if (!folders.has(folderPath)) {
-                                    folders.add(folderPath);
+                                if (folderName && !folders.has(folderName)) {
+                                    folders.add(folderName);
+                                    const folderPath = prefix + folderName + '/';
                                     objects.push({
                                         name: folderName,
                                         size: 0,
@@ -306,14 +322,16 @@ class MinioService {
                             }
                         }
 
-                        // Add file entry
-                        objects.push({
-                            name: relativePath,
-                            size: obj.size || 0,
-                            lastModified: obj.lastModified || new Date(),
-                            etag: obj.etag || '',
-                            isFolder: false,
-                        });
+                        // Add file entry (only files at current level)
+                        if (relativePath && !relativePath.includes('/')) {
+                            objects.push({
+                                name: relativePath,
+                                size: obj.size || 0,
+                                lastModified: obj.lastModified || new Date(),
+                                etag: obj.etag || '',
+                                isFolder: false,
+                            });
+                        }
                     }
                 }
             }
@@ -521,6 +539,36 @@ class MinioService {
             log.error('Failed to get object stat', {
                 bucketName,
                 objectName,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Get bucket information with object count and total size.
+     * 
+     * @param bucketName - Name of the bucket
+     * @returns Bucket statistics including object count and total size
+     */
+    async getBucketStats(bucketName: string): Promise<{ objectCount: number; totalSize: number }> {
+        const client = this.ensureClient();
+        try {
+            let objectCount = 0;
+            let totalSize = 0;
+
+            const stream = client.listObjects(bucketName, '', true);
+            for await (const obj of stream) {
+                if (obj.name && !obj.name.endsWith('/')) {
+                    objectCount++;
+                    totalSize += obj.size || 0;
+                }
+            }
+
+            return { objectCount, totalSize };
+        } catch (error) {
+            log.error('Failed to get bucket stats', {
+                bucketName,
                 error: error instanceof Error ? error.message : String(error),
             });
             throw error;

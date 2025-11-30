@@ -2,8 +2,8 @@
  * @fileoverview MinIO storage service for Knowledge Base document operations.
  * 
  * Provides API functions for interacting with MinIO object storage:
- * - Bucket management (list, create, delete)
- * - File operations (list, upload, download, delete)
+ * - Bucket management (list, add, remove configurations) - stored in database
+ * - File operations (list, upload, download, delete) - directly from MinIO
  * - Folder management and batch operations
  * 
  * All operations require authentication and appropriate permissions.
@@ -20,7 +20,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 // ============================================================================
 
 /**
- * MinIO bucket record from the database.
+ * MinIO bucket configuration from the database.
  */
 export interface MinioBucket {
     /** Unique bucket ID (UUID) */
@@ -58,10 +58,10 @@ export interface FileObject {
 }
 
 /**
- * Data for creating a new bucket.
+ * Data for adding a new bucket configuration.
  */
 export interface CreateBucketDto {
-    /** MinIO bucket name (must follow S3 naming rules) */
+    /** MinIO bucket name (must exist in MinIO, follow S3 naming rules) */
     bucket_name: string;
     /** Human-readable display name */
     display_name: string;
@@ -69,13 +69,23 @@ export interface CreateBucketDto {
     description?: string;
 }
 
+/**
+ * Available bucket from MinIO (not yet configured).
+ */
+export interface AvailableBucket {
+    /** MinIO bucket name */
+    name: string;
+    /** Creation timestamp */
+    creationDate: string;
+}
+
 // ============================================================================
 // Bucket Operations
 // ============================================================================
 
 /**
- * Fetch all configured buckets.
- * @returns Array of bucket records
+ * Fetch all configured buckets from database.
+ * @returns Array of bucket configurations
  * @throws Error if fetch fails
  */
 export const getBuckets = async (): Promise<MinioBucket[]> => {
@@ -92,9 +102,28 @@ export const getBuckets = async (): Promise<MinioBucket[]> => {
 };
 
 /**
- * Create a new bucket.
- * @param bucket - Bucket creation data
- * @returns Created bucket record
+ * Fetch available buckets from MinIO (not yet configured).
+ * @returns Array of available buckets
+ * @throws Error if fetch fails
+ */
+export const getAvailableBuckets = async (): Promise<AvailableBucket[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/minio/buckets/available/list`, {
+        credentials: 'include',
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch available buckets: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.buckets;
+};
+
+/**
+ * Add a bucket configuration to database.
+ * The bucket must already exist in MinIO.
+ * @param bucket - Bucket configuration data
+ * @returns Created bucket configuration
  * @throws Error if creation fails
  */
 export const createBucket = async (bucket: CreateBucketDto): Promise<MinioBucket> => {
@@ -109,7 +138,7 @@ export const createBucket = async (bucket: CreateBucketDto): Promise<MinioBucket
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to create bucket');
+        throw new Error(error.error || 'Failed to add bucket configuration');
     }
 
     const data = await response.json();
@@ -117,9 +146,10 @@ export const createBucket = async (bucket: CreateBucketDto): Promise<MinioBucket
 };
 
 /**
- * Delete a bucket by ID.
- * @param bucketId - Bucket UUID to delete
- * @throws Error if deletion fails
+ * Remove a bucket configuration from database.
+ * This does NOT delete the bucket from MinIO.
+ * @param bucketId - Bucket UUID to remove
+ * @throws Error if removal fails
  */
 export const deleteBucket = async (bucketId: string): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/api/minio/buckets/${bucketId}`, {
@@ -129,7 +159,7 @@ export const deleteBucket = async (bucketId: string): Promise<void> => {
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to delete bucket');
+        throw new Error(error.error || 'Failed to remove bucket configuration');
     }
 };
 
@@ -138,7 +168,7 @@ export const deleteBucket = async (bucketId: string): Promise<void> => {
 // ============================================================================
 
 /**
- * List objects in a bucket at the given prefix.
+ * List objects in a bucket at the given prefix (realtime from MinIO).
  * @param bucketId - Bucket UUID
  * @param prefix - Path prefix (folder path)
  * @returns Array of file/folder objects
@@ -148,12 +178,12 @@ export const listObjects = async (
     bucketId: string,
     prefix: string = ''
 ): Promise<FileObject[]> => {
-    const url = new URL(`${API_BASE_URL}/api/minio/storage/${bucketId}/list`);
+    let url = `${API_BASE_URL}/api/minio/storage/${bucketId}/list`;
     if (prefix) {
-        url.searchParams.set('prefix', prefix);
+        url += `?prefix=${encodeURIComponent(prefix)}`;
     }
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
         credentials: 'include',
     });
 
@@ -196,10 +226,6 @@ export const uploadFiles = async (
 
     if (prefix) {
         formData.append('prefix', prefix);
-    }
-
-    if (preserveFolderStructure) {
-        formData.append('preserveFolderStructure', 'true');
     }
 
     if (preserveFolderStructure) {
