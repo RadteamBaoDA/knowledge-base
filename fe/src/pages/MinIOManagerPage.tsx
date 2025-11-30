@@ -36,6 +36,12 @@ import {
 } from '../services/minioService';
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+const STORAGE_KEY_SELECTED_BUCKET = 'minio_selected_bucket';
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -86,6 +92,19 @@ const MinIOManagerPage = () => {
     const uploadMenuRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
+
+    // Handle bucket selection with localStorage persistence
+    const handleBucketSelect = (bucketId: string) => {
+        setSelectedBucket(bucketId);
+        // Save to localStorage
+        if (bucketId) {
+            localStorage.setItem(STORAGE_KEY_SELECTED_BUCKET, bucketId);
+        }
+        // Reset navigation when switching buckets
+        setCurrentPrefix('');
+        setHistoryStack(['']);
+        setHistoryIndex(0);
+    };
 
     // Navigation functions
     const navigateTo = (prefix: string) => {
@@ -153,8 +172,25 @@ const MinIOManagerPage = () => {
         try {
             const data = await getBuckets();
             setBuckets(data);
+            
             if (data.length > 0 && !selectedBucket) {
-                setSelectedBucket(data[0]?.id || '');
+                // Try to restore from localStorage
+                const savedBucketId = localStorage.getItem(STORAGE_KEY_SELECTED_BUCKET);
+                
+                // Check if saved bucket still exists in the list
+                const savedBucketExists = savedBucketId && data.some(b => b.id === savedBucketId);
+                
+                if (savedBucketExists) {
+                    // Restore saved bucket
+                    setSelectedBucket(savedBucketId);
+                } else {
+                    // Fall back to first bucket
+                    const firstBucketId = data[0]?.id || '';
+                    setSelectedBucket(firstBucketId);
+                    if (firstBucketId) {
+                        localStorage.setItem(STORAGE_KEY_SELECTED_BUCKET, firstBucketId);
+                    }
+                }
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : t('minio.loadFailed'));
@@ -333,7 +369,7 @@ const MinIOManagerPage = () => {
                     )}
                     <Select
                         value={selectedBucket}
-                        onChange={setSelectedBucket}
+                        onChange={handleBucketSelect}
                         options={bucketOptions}
                         className="w-64"
                     />
